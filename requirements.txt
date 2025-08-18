@@ -10,3 +10,5 @@ xhtml2pdf
 scikit-learn
 rapidfuzz
 nltk
+
+itsdangerous
