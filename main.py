@@ -655,8 +655,44 @@ def read_form(request: Request):
     })
 
 # ---------- Ingredient -> Claims ----------
+from starlette.middleware.sessions import SessionMiddleware
+from starlette.responses import RedirectResponse
+from datetime import timedelta
+
+app.add_middleware(SessionMiddleware, secret_key=os.getenv("SESSION_SECRET_KEY", "super-secret-key"))
+
+USAGE_LIMIT = 3
+USAGE_RESET_DAYS = 7
+PAYWALL_URL = "https://claimsafer.com/#/pricing"
+
+def check_and_update_usage(request):
+    session = request.session
+    now = datetime.utcnow()
+    usage_count = session.get("usage_count", 0)
+    first_use = session.get("first_use")
+    if first_use:
+        first_use_dt = datetime.fromisoformat(first_use)
+        if now - first_use_dt > timedelta(days=USAGE_RESET_DAYS):
+            # Reset after 7 days
+            session["usage_count"] = 1
+            session["first_use"] = now.isoformat()
+            return True
+        else:
+            if usage_count >= USAGE_LIMIT:
+                return False
+            session["usage_count"] = usage_count + 1
+            return True
+    else:
+        # First use
+        session["usage_count"] = 1
+        session["first_use"] = now.isoformat()
+        return True
+
 @app.post("/search-by-ingredient", response_class=HTMLResponse)
-async def search_by_ingredient(ingredient: str = Form(...), country: str = Form(...)):
+async def search_by_ingredient(request: Request, ingredient: str = Form(...), country: str = Form(...)):
+    # Usage limit check
+    if not check_and_update_usage(request):
+        return RedirectResponse(PAYWALL_URL, status_code=307)
     try:
         print(f"🔍 Searching for ingredient: '{ingredient}' in country: '{country}'")
         print(f"📊 DataFrame shape: {df.shape}")
@@ -998,11 +1034,10 @@ async def search_by_ingredient(ingredient: str = Form(...), country: str = Form(
 
 # ---------- Claim -> Ingredients ----------
 @app.post("/search-by-claim", response_class=HTMLResponse)
-async def search_by_claim(
-    claim: str = Form(""),
-    country: str = Form(...),
-    category: Optional[str] = Form(None)
-):
+async def search_by_claim(request: Request, claim: str = Form(""), country: str = Form(...), category: Optional[str] = Form(None)):
+    # Usage limit check
+    if not check_and_update_usage(request):
+        return RedirectResponse(PAYWALL_URL, status_code=307)
     """
     Claim -> Ingredients:
     - Als category gegeven is en claim leeg is: toon alle ingrediënten in die categorie (geen ranking).
