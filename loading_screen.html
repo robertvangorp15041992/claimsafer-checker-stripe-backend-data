@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Loading…</title>
+  <style>
+    html, body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      min-height: 100vh;
+      background: #0b1220;
+      color: #e8eef7;
+      display: grid;
+      place-items: center;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Inter, Arial, sans-serif;
+    }
+    .loader {
+      display: grid;
+      gap: 1.5rem;
+      place-items: center;
+      width: 100vw;
+      height: 100vh;
+    }
+    /* Tailwind-like utilities */
+    .w-20 { width: 5rem; }
+    .h-20 { height: 5rem; }
+    .transition-all { transition: all 1s; }
+    .duration-1000 { transition-duration: 1000ms; }
+    .animate-logo-spin { animation: logo-spin 20s linear infinite; }
+    .animate-fade-in-up { animation: fade-in-up .7s ease-out both; }
+    /* Keyframes */
+    @keyframes logo-spin { from { transform: rotate(0); } to { transform: rotate(360deg); } }
+    @keyframes fade-in-up { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    /* Drop shadow for logo */
+    .logo-shadow { filter: drop-shadow(0 10px 24px rgba(0,0,0,0.25)); }
+    /* Respect reduced motion */
+    @media (prefers-reduced-motion: reduce) {
+      .animate-logo-spin, .animate-fade-in-up { animation: none !important; }
+      .transition-all { transition: none !important; }
+    }
+    .label {
+      font-size: 1rem;
+      letter-spacing: .02em;
+      opacity: .8;
+      text-align: center;
+      margin-top: 0.5rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="loader" role="status" aria-live="polite" aria-label="Loading">
+    <svg class="w-20 h-20 transition-all duration-1000 animate-logo-spin logo-shadow"
+         xmlns="http://www.w3.org/2000/svg"
+         viewBox="0 0 5000 5000"
+         preserveAspectRatio="xMidYMid meet"
+         aria-label="ClaimSafer logo"
+         role="img">
+      <g class="transition-all duration-1000 animate-fade-in-up" style="animation-delay:0.3s">
+        <path fill="#213B4E" d="M1549 2926 c-135 -133 -251 -251 -257 -263 -9 -16 -12 -232 -12 -806 0 -860 -3 -825 57 -794 24 13 380 343 441 409 l22 24 -2 836 -3 835 -246 -241z"/>
+      </g>
+      <g class="transition-all duration-1000 animate-fade-in-up" style="animation-delay:0.5s">
+        <path fill="#5F66D3" d="M2540 3395 c-80 -77 -183 -176 -229 -220 -46 -44 -96 -98 -112 -119 l-29 -39 0 -964 c0 -882 1 -964 16 -970 9 -3 31 1 48 11 31 17 420 373 444 407 9 14 12 230 10 1026 l-3 1008 -145 -140z"/>
+      </g>
+      <g class="transition-all duration-1000 animate-fade-in-up" style="animation-delay:0.7s">
+        <path fill="#5F66D3" d="M3503 3991 c-37 -32 -148 -139 -245 -238 l-178 -179 0 -1028 0 -1027 28 21 c74 58 451 433 466 464 14 31 16 128 16 1034 0 618 -4 1003 -9 1007 -6 3 -41 -21 -78 -54z"/>
+      </g>
+    </svg>
+    <div class="label">Loading ClaimSafer…</div>
+  </div>
+  <script>
+    // OPTIONAL: hide loader when your app is ready
+    window.hideLoader = function(){
+      const loader = document.querySelector('.loader');
+      if (!loader) return;
+      loader.style.transition = 'opacity .35s ease';
+      loader.style.opacity = '0';
+      setTimeout(()=> loader.remove(), 400);
+    };
+  </script>
+</body>
+</html>
