@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Billing</h2>
+<div class="card">
+    <h3>Your Plan <span class="badge">{{ user.tier.value|capitalize }}</span></h3>
+    <table style="width:100%; margin-top:0.5em;">
+        <tr><td>Daily Checks</td><td>{{ ents.daily_checks }}</td></tr>
+        <tr><td>Countries per Check</td><td>{{ ents.countries_per_check }}</td></tr>
+        <tr><td>Pro Tools</td><td>{{ 'Yes' if ents.pro_tools else 'No' }}</td></tr>
+        <tr><td>Priority Support</td><td>{{ ents.priority_support }}</td></tr>
+    </table>
+</div>
+<div class="card">
+    <h3>Manage Billing</h3>
+    {% if user.stripe_customer_id %}
+    <form method="post" action="/billing/portal">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <button class="btn" type="submit">Manage Billing</button>
+    </form>
+    {% else %}
+    <div class="alert">No Stripe customer found. Billing management is not available yet.</div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Welcome, {{ user.email }}</h2>
+<div class="card">
+    <h3>Your Plan <span class="badge">{{ user.tier.value|capitalize }}</span></h3>
+    <table style="width:100%; margin-top:0.5em;">
+        <tr><td>Daily Checks</td><td>{{ ents.daily_checks }}</td></tr>
+        <tr><td>Countries per Check</td><td>{{ ents.countries_per_check }}</td></tr>
+        <tr><td>Pro Tools</td><td>{{ 'Yes' if ents.pro_tools else 'No' }}</td></tr>
+        <tr><td>Priority Support</td><td>{{ ents.priority_support }}</td></tr>
+    </table>
+</div>
+<div class="card">
+    <h3>Today's Usage</h3>
+    <div style="margin-bottom:0.5em;">{{ used }} / {{ ents.daily_checks if ents.daily_checks != -1 else '∞' }}</div>
+    <div style="background:#333; border-radius:4px; height:18px; width:100%;">
+        <div style="background:#4f8cff; height:18px; border-radius:4px; width:{{ (used / ents.daily_checks * 100) if ents.daily_checks != -1 else 100 }}%;"></div>
+    </div>
+    {% if ents.daily_checks != -1 and used / ents.daily_checks > 0.8 %}
+    <div style="margin-top:1em;"><a href="{{ upgrade_url }}" class="btn upgrade">Upgrade</a></div>
+    {% endif %}
+</div>
+<div class="card">
+    <h3>Perks</h3>
+    <ul>
+        <li>Pro Tools: {{ 'Enabled' if ents.pro_tools else 'Not available' }}</li>
+        <li>Priority Support: {{ ents.priority_support }}</li>
+    </ul>
+</div>
+<div class="card">
+    <h3>Test a Claim Check</h3>
+    <button class="btn" onclick="runTestCheck()">Run Test Check</button>
+    <div id="test-result" style="margin-top:1em;"></div>
+</div>
+<script>
+function runTestCheck() {
+    fetch('/api/claims/check', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: 'Test', countries: ['NL'] })
+    })
+    .then(r => r.json())
+    .then(data => {
+        document.getElementById('test-result').innerText = JSON.stringify(data, null, 2);
+    })
+    .catch(e => {
+        document.getElementById('test-result').innerText = 'Error: ' + e;
+    });
+}
+</script>
+{% endblock %}
