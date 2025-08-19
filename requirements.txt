@@ -9,3 +9,10 @@ werkzeug
 email-validator
 pytest
 httpx
+pandas
+scikit-learn
+nltk
+jinja2
+prometheus-client
+xhtml2pdf
+rapidfuzz
