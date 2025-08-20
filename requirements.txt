@@ -17,3 +17,7 @@ prometheus-client
 xhtml2pdf
 rapidfuzz
 fastapi-mail
+python-multipart
+PyYAML
+starlette
+pydantic[email]
