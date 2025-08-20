@@ -7,7 +7,7 @@ import json
 from app.db import get_db
 from app.models import User, Tier, UsageCounter, MembershipAudit
 from app.services.users import get_user_by_email
-from app.services.usage import get_user_usage_today, increment_user_usage
+from app.services.usage import get_user_usage_days
 from app.dependencies import require_role
 from app.utils import hash_password
 from app.repository import create_user
