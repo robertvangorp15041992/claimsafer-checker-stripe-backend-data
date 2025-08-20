@@ -1,24 +1,374 @@
 {% extends "base.html" %}
 {% block content %}
-<h2>Billing</h2>
-<div class="card">
-    <h3>Your Plan <span class="badge">{{ user.tier.value|capitalize }}</span></h3>
-    <table style="width:100%; margin-top:0.5em;">
-        <tr><td>Daily Checks</td><td>{{ ents.daily_checks }}</td></tr>
-        <tr><td>Countries per Check</td><td>{{ ents.countries_per_check }}</td></tr>
-        <tr><td>Pro Tools</td><td>{{ 'Yes' if ents.pro_tools else 'No' }}</td></tr>
-        <tr><td>Priority Support</td><td>{{ ents.priority_support }}</td></tr>
-    </table>
+<div class="billing-container">
+    <div class="page-header">
+        <h1>Billing & Subscription</h1>
+        <p>Manage your subscription and billing preferences</p>
+    </div>
+
+    <div class="billing-grid">
+        <!-- Current Plan -->
+        <div class="card">
+            <h3>Current Plan</h3>
+            <div class="plan-details">
+                <div class="plan-badge">
+                    <span class="badge {{ user.tier.value }} large">{{ user.tier.value|capitalize }}</span>
+                </div>
+                <div class="plan-features">
+                    <h4>Plan Features</h4>
+                    <ul class="feature-list">
+                        <li>{{ ents.daily_checks if ents.daily_checks != -1 else 'Unlimited' }} daily checks</li>
+                        <li>{{ ents.countries_per_check }} countries per check</li>
+                        <li>{{ '✅' if ents.pro_tools else '❌' }} Pro tools access</li>
+                        <li>{{ ents.priority_support }} support</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Billing Information -->
+        <div class="card">
+            <h3>Billing Information</h3>
+            <div class="billing-info">
+                <div class="info-item">
+                    <label>Customer ID</label>
+                    <span>{{ user.stripe_customer_id or 'Not set' }}</span>
+                </div>
+                <div class="info-item">
+                    <label>Account Status</label>
+                    <span class="badge {{ 'success' if user.is_active else 'danger' }}">
+                        {{ 'Active' if user.is_active else 'Inactive' }}
+                    </span>
+                </div>
+                <div class="info-item">
+                    <label>Member Since</label>
+                    <span>{{ user.created_at.strftime('%B %d, %Y') }}</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Usage Overview -->
+        <div class="card">
+            <h3>Usage Overview</h3>
+            <div class="usage-overview">
+                <div class="usage-stats">
+                    <div class="stat-item">
+                        <div class="stat-number">{{ used }}</div>
+                        <div class="stat-label">Used Today</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-number">{{ ents.daily_checks if ents.daily_checks != -1 else '∞' }}</div>
+                        <div class="stat-label">Daily Limit</div>
+                    </div>
+                </div>
+                <div class="usage-progress">
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: {{ (used / ents.daily_checks * 100) if ents.daily_checks != -1 else 100 }}%;"></div>
+                    </div>
+                    <div class="progress-text">{{ (used / ents.daily_checks * 100) | round(1) if ents.daily_checks != -1 else 0 }}% used today</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Billing Actions -->
+        <div class="card">
+            <h3>Billing Actions</h3>
+            <div class="billing-actions">
+                <a href="/billing/portal" class="btn btn-primary">
+                    <span class="action-icon">💳</span>
+                    Manage Billing Portal
+                </a>
+                <a href="/account" class="btn secondary">
+                    <span class="action-icon">⚙️</span>
+                    Account Settings
+                </a>
+                <a href="/dashboard" class="btn secondary">
+                    <span class="action-icon">📊</span>
+                    Dashboard
+                </a>
+            </div>
+        </div>
+
+        <!-- Plan Comparison -->
+        <div class="card full-width">
+            <h3>Available Plans</h3>
+            <div class="plans-comparison">
+                <div class="plan-card">
+                    <div class="plan-header">
+                        <h4>Free</h4>
+                        <div class="plan-price">$0/month</div>
+                    </div>
+                    <ul class="plan-features">
+                        <li>3 daily checks</li>
+                        <li>1 country per check</li>
+                        <li>Basic support</li>
+                    </ul>
+                </div>
+                <div class="plan-card featured">
+                    <div class="plan-header">
+                        <h4>Pro</h4>
+                        <div class="plan-price">$29/month</div>
+                        <div class="plan-badge">Current</div>
+                    </div>
+                    <ul class="plan-features">
+                        <li>200 daily checks</li>
+                        <li>5 countries per check</li>
+                        <li>Pro tools access</li>
+                        <li>Priority support</li>
+                    </ul>
+                </div>
+                <div class="plan-card">
+                    <div class="plan-header">
+                        <h4>Enterprise</h4>
+                        <div class="plan-price">$99/month</div>
+                    </div>
+                    <ul class="plan-features">
+                        <li>Unlimited checks</li>
+                        <li>20 countries per check</li>
+                        <li>All pro features</li>
+                        <li>Dedicated support</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
-<div class="card">
-    <h3>Manage Billing</h3>
-    {% if user.stripe_customer_id %}
-    <form method="post" action="/billing/portal">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-        <button class="btn" type="submit">Manage Billing</button>
-    </form>
-    {% else %}
-    <div class="alert">No Stripe customer found. Billing management is not available yet.</div>
-    {% endif %}
-</div>
+
+<style>
+.billing-container {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.page-header {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.page-header h1 {
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin: 0 0 0.5rem 0;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--success) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.page-header p {
+    color: var(--text-muted);
+    font-size: 1.125rem;
+    margin: 0;
+}
+
+.billing-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    gap: 2rem;
+}
+
+.plan-details {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.plan-badge {
+    text-align: center;
+}
+
+.badge.large {
+    font-size: 1.25rem;
+    padding: 0.5rem 1.5rem;
+}
+
+.plan-features h4 {
+    margin: 0 0 1rem 0;
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.feature-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.feature-list li {
+    padding: 0.5rem 0;
+    color: var(--text);
+    font-size: 0.875rem;
+}
+
+.billing-info {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.info-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid var(--border);
+}
+
+.info-item:last-child {
+    border-bottom: none;
+}
+
+.info-item label {
+    font-weight: 500;
+    color: var(--text-muted);
+}
+
+.info-item span {
+    color: var(--text);
+    font-weight: 500;
+}
+
+.usage-overview {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.usage-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+.stat-item {
+    text-align: center;
+    padding: 1rem;
+    background: var(--darker);
+    border-radius: 0.5rem;
+    border: 1px solid var(--border);
+}
+
+.stat-number {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--primary);
+    margin-bottom: 0.25rem;
+}
+
+.stat-label {
+    font-size: 0.875rem;
+    color: var(--text-muted);
+}
+
+.usage-progress {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.progress-text {
+    text-align: center;
+    font-size: 0.875rem;
+    color: var(--text-muted);
+}
+
+.billing-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.action-icon {
+    margin-right: 0.5rem;
+}
+
+.plans-comparison {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1.5rem;
+    margin-top: 1rem;
+}
+
+.plan-card {
+    background: var(--darker);
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    padding: 1.5rem;
+    text-align: center;
+    position: relative;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.plan-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 25px -3px rgba(0, 0, 0, 0.2);
+}
+
+.plan-card.featured {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 1px var(--primary);
+}
+
+.plan-header {
+    margin-bottom: 1.5rem;
+    position: relative;
+}
+
+.plan-header h4 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin: 0 0 0.5rem 0;
+    color: var(--text);
+}
+
+.plan-price {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--primary);
+    margin-bottom: 0.5rem;
+}
+
+.plan-badge {
+    position: absolute;
+    top: -0.5rem;
+    right: -0.5rem;
+    background: var(--success);
+    color: white;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+.plan-card .feature-list {
+    text-align: left;
+}
+
+.plan-card .feature-list li {
+    padding: 0.25rem 0;
+    font-size: 0.875rem;
+}
+
+.full-width {
+    grid-column: 1 / -1;
+}
+
+@media (max-width: 768px) {
+    .billing-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .usage-stats {
+        grid-template-columns: 1fr;
+    }
+    
+    .plans-comparison {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
 {% endblock %}

@@ -79,22 +79,22 @@ def activate_post(token: str = Form(...), password: str = Form(...), db: Session
 # --- Login routes ---
 @router.get("/login", response_class=HTMLResponse)
 def login_form(request: Request):
-    return """
-    <form method='post' action='/login'>
-        <input type='email' name='email' placeholder='Email' required /><br>
-        <input type='password' name='password' placeholder='Password' minlength='8' required /><br>
-        <button type='submit'>Login</button>
-    </form>
-    """
+    return templates.TemplateResponse("login.html", {"request": request})
 
 @router.post("/login")
-def login_post(response: Response, email: str = Form(...), password: str = Form(...), db: Session = Depends(get_db)):
+def login_post(request: Request, response: Response, email: str = Form(...), password: str = Form(...), db: Session = Depends(get_db)):
     email = normalize_email(email)
     user = db.query(User).filter_by(email=email).first()
     if not user or not user.password_hash or not user.is_active:
-        return HTMLResponse("<h3>Invalid credentials or inactive account.</h3>", status_code=401)
+        return templates.TemplateResponse("login.html", {
+            "request": request,
+            "error": "Invalid credentials or inactive account."
+        }, status_code=401)
     if not check_password_hash(user.password_hash, password):
-        return HTMLResponse("<h3>Invalid credentials.</h3>", status_code=401)
+        return templates.TemplateResponse("login.html", {
+            "request": request,
+            "error": "Invalid credentials."
+        }, status_code=401)
     # Set session cookie
     response = RedirectResponse("/dashboard", status_code=302)
     response.set_cookie(
