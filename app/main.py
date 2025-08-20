@@ -44,7 +44,17 @@ app.add_middleware(SessionMiddleware, secret_key=SESSION_SECRET, session_cookie=
 
 @app.on_event("startup")
 def on_startup():
-    Base.metadata.create_all(bind=engine)
+    try:
+        Base.metadata.create_all(bind=engine)
+        print("✅ Database tables created successfully")
+    except Exception as e:
+        print(f"❌ Database startup error: {e}")
+    
+    try:
+        load_data()  # Load ingredient checker data
+    except Exception as e:
+        print(f"❌ Data loading error: {e}")
+        # Don't crash the app if data loading fails
 
 def get_db():
     db = SessionLocal()
@@ -211,9 +221,9 @@ def load_data():
         print("❌ Error loading data:", e)
 
 # Load data on startup
-@app.on_event("startup")
-def startup_event():
-    load_data()
+# @app.on_event("startup")
+# def startup_event():
+#     load_data()
 
 def normalize_text(s: str) -> str:
     """Lowercase, remove accents, punctuation, collapse whitespace."""
