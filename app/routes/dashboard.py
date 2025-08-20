@@ -25,40 +25,59 @@ STRIPE_PORTAL_RETURN_PATH = os.getenv("STRIPE_PORTAL_RETURN_PATH", "/billing")
 STRIPE_API_KEY = os.getenv("STRIPE_API_KEY")
 stripe.api_key = STRIPE_API_KEY
 
+# --- Test route ---
+@router.get("/test-template", response_class=HTMLResponse)
+def test_template(request: Request):
+    try:
+        return templates.TemplateResponse("base.html", {
+            "request": request,
+            "content": "<h1>Template Test</h1><p>If you see this styled, templates work!</p>"
+        })
+    except Exception as e:
+        return HTMLResponse(f"<h1>Template Error</h1><p>Error: {e}</p>")
+
 # --- Dashboard ---
 @router.get("/dashboard", response_class=HTMLResponse)
 def dashboard(request: Request, db: Session = Depends(get_db), user=Depends(require_active_user)):
-    ents = get_entitlements(user.tier)
-    counter = get_or_create_today_counter(db, user.id)
-    remaining = remaining_daily_checks(db, user, ents)
-    csrf_token = generate_csrf_token()
-    response = templates.TemplateResponse("dashboard.html", {
-        "request": request,
-        "user": user,
-        "ents": ents,
-        "used": counter.daily_checks_used,
-        "remaining": remaining,
-        "csrf_token": csrf_token,
-        "upgrade_url": UPGRADE_URL,
-    })
-    response.set_cookie("csrf_token", csrf_token, httponly=False, samesite="lax")
-    return response
+    try:
+        ents = get_entitlements(user.tier)
+        counter = get_or_create_today_counter(db, user.id)
+        remaining = remaining_daily_checks(db, user, ents)
+        csrf_token = generate_csrf_token()
+        response = templates.TemplateResponse("dashboard.html", {
+            "request": request,
+            "user": user,
+            "ents": ents,
+            "used": counter.daily_checks_used,
+            "remaining": remaining,
+            "csrf_token": csrf_token,
+            "upgrade_url": UPGRADE_URL,
+        })
+        response.set_cookie("csrf_token", csrf_token, httponly=False, samesite="lax")
+        return response
+    except Exception as e:
+        print(f"Error in dashboard route: {e}")
+        return HTMLResponse(f"<h1>Dashboard</h1><p>Error: {e}</p>")
 
 # --- Account ---
 @router.get("/account", response_class=HTMLResponse)
 def account(request: Request, db: Session = Depends(get_db), user=Depends(require_active_user)):
-    ents = get_entitlements(user.tier)
-    counter = get_or_create_today_counter(db, user.id)
-    csrf_token = generate_csrf_token()
-    response = templates.TemplateResponse("account.html", {
-        "request": request,
-        "user": user,
-        "ents": ents,
-        "used": counter.daily_checks_used,
-        "csrf_token": csrf_token,
-    })
-    response.set_cookie("csrf_token", csrf_token, httponly=False, samesite="lax")
-    return response
+    try:
+        ents = get_entitlements(user.tier)
+        counter = get_or_create_today_counter(db, user.id)
+        csrf_token = generate_csrf_token()
+        response = templates.TemplateResponse("account.html", {
+            "request": request,
+            "user": user,
+            "ents": ents,
+            "used": counter.daily_checks_used,
+            "csrf_token": csrf_token,
+        })
+        response.set_cookie("csrf_token", csrf_token, httponly=False, samesite="lax")
+        return response
+    except Exception as e:
+        print(f"Error in account route: {e}")
+        return HTMLResponse(f"<h1>Account Page</h1><p>Error: {e}</p>")
 
 @router.post("/account/change-password")
 def change_password(request: Request, db: Session = Depends(get_db), user=Depends(require_active_user), current_password: str = Form(...), new_password: str = Form(...)):
@@ -97,19 +116,23 @@ def send_magic_link(request: Request, user=Depends(require_active_user)):
 # --- Billing ---
 @router.get("/billing", response_class=HTMLResponse)
 def billing(request: Request, db: Session = Depends(get_db), user=Depends(require_active_user)):
-    ents = get_entitlements(user.tier)
-    counter = get_or_create_today_counter(db, user.id)
-    csrf_token = generate_csrf_token()
-    response = templates.TemplateResponse("billing.html", {
-        "request": request,
-        "user": user,
-        "ents": ents,
-        "used": counter.daily_checks_used,
-        "csrf_token": csrf_token,
-        "upgrade_url": UPGRADE_URL,
-    })
-    response.set_cookie("csrf_token", csrf_token, httponly=False, samesite="lax")
-    return response
+    try:
+        ents = get_entitlements(user.tier)
+        counter = get_or_create_today_counter(db, user.id)
+        csrf_token = generate_csrf_token()
+        response = templates.TemplateResponse("billing.html", {
+            "request": request,
+            "user": user,
+            "ents": ents,
+            "used": counter.daily_checks_used,
+            "csrf_token": csrf_token,
+            "upgrade_url": UPGRADE_URL,
+        })
+        response.set_cookie("csrf_token", csrf_token, httponly=False, samesite="lax")
+        return response
+    except Exception as e:
+        print(f"Error in billing route: {e}")
+        return HTMLResponse(f"<h1>Billing Page</h1><p>Error: {e}</p>")
 
 @router.post("/billing/portal")
 def billing_portal(request: Request, user=Depends(require_active_user)):
