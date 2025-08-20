@@ -2,34 +2,259 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>ClaimSafer</title>
+    <title>ClaimSafer - {{ self.title() if self.title() else 'Dashboard' }}</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        body { background: #181a1b; color: #f3f3f3; font-family: sans-serif; margin: 0; }
-        nav { background: #23272a; padding: 1em; display: flex; gap: 1em; }
-        nav a { color: #fff; text-decoration: none; font-weight: bold; }
-        .container { max-width: 800px; margin: 2em auto; padding: 1em; background: #23272a; border-radius: 8px; }
-        .card { background: #222; border-radius: 6px; padding: 1em; margin-bottom: 1em; }
-        .badge { display: inline-block; padding: 0.2em 0.7em; border-radius: 1em; background: #444; color: #fff; font-size: 0.9em; margin-left: 0.5em; }
-        .btn { background: #4f8cff; color: #fff; border: none; border-radius: 4px; padding: 0.5em 1.2em; cursor: pointer; font-size: 1em; }
-        .btn.upgrade { background: #ffb347; color: #222; }
-        .alert { background: #ff4f4f; color: #fff; padding: 0.5em 1em; border-radius: 4px; margin-bottom: 1em; }
-        @media (max-width: 600px) {
-            .container { padding: 0.5em; }
-            nav { flex-direction: column; gap: 0.5em; }
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1d4ed8;
+            --secondary: #64748b;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --dark: #0f172a;
+            --darker: #020617;
+            --light: #f8fafc;
+            --border: #334155;
+            --card-bg: #1e293b;
+            --text: #e2e8f0;
+            --text-muted: #94a3b8;
+        }
+        
+        * { box-sizing: border-box; }
+        
+        body { 
+            background: linear-gradient(135deg, var(--darker) 0%, var(--dark) 100%);
+            color: var(--text);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            margin: 0;
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+        
+        nav { 
+            background: rgba(30, 41, 59, 0.95);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--border);
+            padding: 1rem 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        
+        .nav-brand {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary);
+            text-decoration: none;
+        }
+        
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+            align-items: center;
+        }
+        
+        nav a { 
+            color: var(--text);
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.2s;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+        }
+        
+        nav a:hover { 
+            color: var(--primary);
+            background: rgba(37, 99, 235, 0.1);
+        }
+        
+        .container { 
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        
+        .card { 
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 1rem;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px -3px rgba(0, 0, 0, 0.2);
+        }
+        
+        .card h3 {
+            margin: 0 0 1rem 0;
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--text);
+        }
+        
+        .badge { 
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            background: var(--primary);
+            color: white;
+            font-size: 0.875rem;
+            font-weight: 500;
+            margin-left: 0.5rem;
+        }
+        
+        .badge.pro { background: var(--success); }
+        .badge.enterprise { background: var(--warning); }
+        .badge.free { background: var(--secondary); }
+        
+        .btn { 
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 0.5rem;
+            padding: 0.75rem 1.5rem;
+            cursor: pointer;
+            font-size: 0.875rem;
+            font-weight: 500;
+            transition: all 0.2s;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .btn:hover {
+            background: var(--primary-dark);
+            transform: translateY(-1px);
+        }
+        
+        .btn.upgrade { 
+            background: var(--warning);
+            color: var(--dark);
+        }
+        
+        .btn.upgrade:hover {
+            background: #d97706;
+        }
+        
+        .btn.secondary {
+            background: var(--secondary);
+        }
+        
+        .btn.secondary:hover {
+            background: #475569;
+        }
+        
+        .progress-bar {
+            background: var(--border);
+            border-radius: 0.5rem;
+            height: 0.75rem;
+            width: 100%;
+            overflow: hidden;
+            margin: 0.5rem 0;
+        }
+        
+        .progress-fill {
+            background: linear-gradient(90deg, var(--primary) 0%, var(--success) 100%);
+            height: 100%;
+            border-radius: 0.5rem;
+            transition: width 0.3s ease;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin: 1.5rem 0;
+        }
+        
+        .stat-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            text-align: center;
+        }
+        
+        .stat-number {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 0.5rem;
+        }
+        
+        .stat-label {
+            color: var(--text-muted);
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+        
+        .alert { 
+            background: var(--danger);
+            color: white;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin-bottom: 1rem;
+            border-left: 4px solid #dc2626;
+        }
+        
+        .alert.success {
+            background: var(--success);
+            border-left-color: #059669;
+        }
+        
+        .alert.warning {
+            background: var(--warning);
+            color: var(--dark);
+            border-left-color: #d97706;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+        }
+        
+        th, td {
+            padding: 0.75rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        th {
+            font-weight: 600;
+            color: var(--text-muted);
+            font-size: 0.875rem;
+        }
+        
+        @media (max-width: 768px) {
+            .container { padding: 1rem; }
+            nav { padding: 1rem; }
+            .nav-links { gap: 1rem; }
+            .stats-grid { grid-template-columns: 1fr; }
         }
     </style>
     {% block head %}{% endblock %}
 </head>
 <body>
     <nav>
-        <a href="/dashboard">Dashboard</a>
-        <a href="/account">Account</a>
-        <a href="/billing">Billing</a>
-        <form method="post" action="/auth/logout" style="display:inline; margin:0;">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token|default('') }}">
-            <button class="btn" style="background:#333; color:#fff; border:none;">Logout</button>
-        </form>
+        <a href="/dashboard" class="nav-brand">ClaimSafer</a>
+        <div class="nav-links">
+            <a href="/dashboard">Dashboard</a>
+            <a href="/account">Account</a>
+            <a href="/billing">Billing</a>
+            <form method="post" action="/auth/logout" style="display:inline; margin:0;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token|default('') }}">
+                <button class="btn secondary" style="border:none;">Logout</button>
+            </form>
+        </div>
     </nav>
     <div class="container">
         {% block content %}{% endblock %}

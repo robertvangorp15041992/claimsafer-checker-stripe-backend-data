@@ -1,50 +1,241 @@
 {% extends "base.html" %}
 {% block content %}
-<h2>Welcome, {{ user.email }}</h2>
-<div class="card">
-    <h3>Your Plan <span class="badge">{{ user.tier.value|capitalize }}</span></h3>
-    <table style="width:100%; margin-top:0.5em;">
-        <tr><td>Daily Checks</td><td>{{ ents.daily_checks }}</td></tr>
-        <tr><td>Countries per Check</td><td>{{ ents.countries_per_check }}</td></tr>
-        <tr><td>Pro Tools</td><td>{{ 'Yes' if ents.pro_tools else 'No' }}</td></tr>
-        <tr><td>Priority Support</td><td>{{ ents.priority_support }}</td></tr>
-    </table>
+<div class="welcome-section">
+    <h1>Welcome back, {{ user.email }}</h1>
+    <p class="subtitle">Your ClaimSafer Pro Dashboard</p>
 </div>
+
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-number">{{ used }}</div>
+        <div class="stat-label">Checks Used Today</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-number">{{ ents.daily_checks if ents.daily_checks != -1 else '∞' }}</div>
+        <div class="stat-label">Daily Limit</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-number">{{ ents.countries_per_check }}</div>
+        <div class="stat-label">Countries per Check</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-number">{{ (used / ents.daily_checks * 100) | round(1) if ents.daily_checks != -1 else 0 }}%</div>
+        <div class="stat-label">Usage</div>
+    </div>
+</div>
+
+<div class="card">
+    <h3>Your Plan <span class="badge {{ user.tier.value }}">{{ user.tier.value|capitalize }}</span></h3>
+    <div class="plan-details">
+        <table>
+            <tr>
+                <th>Feature</th>
+                <th>Status</th>
+            </tr>
+            <tr>
+                <td>Daily Checks</td>
+                <td>{{ ents.daily_checks if ents.daily_checks != -1 else 'Unlimited' }}</td>
+            </tr>
+            <tr>
+                <td>Countries per Check</td>
+                <td>{{ ents.countries_per_check }}</td>
+            </tr>
+            <tr>
+                <td>Pro Tools</td>
+                <td>{{ '✅ Enabled' if ents.pro_tools else '❌ Not available' }}</td>
+            </tr>
+            <tr>
+                <td>Priority Support</td>
+                <td>{{ ents.priority_support }}</td>
+            </tr>
+        </table>
+    </div>
+</div>
+
 <div class="card">
     <h3>Today's Usage</h3>
-    <div style="margin-bottom:0.5em;">{{ used }} / {{ ents.daily_checks if ents.daily_checks != -1 else '∞' }}</div>
-    <div style="background:#333; border-radius:4px; height:18px; width:100%;">
-        <div style="background:#4f8cff; height:18px; border-radius:4px; width:{{ (used / ents.daily_checks * 100) if ents.daily_checks != -1 else 100 }}%;"></div>
+    <div class="usage-info">
+        <div class="usage-text">{{ used }} / {{ ents.daily_checks if ents.daily_checks != -1 else '∞' }} checks used</div>
+        <div class="progress-bar">
+            <div class="progress-fill" style="width: {{ (used / ents.daily_checks * 100) if ents.daily_checks != -1 else 100 }}%;"></div>
+        </div>
     </div>
     {% if ents.daily_checks != -1 and used / ents.daily_checks > 0.8 %}
-    <div style="margin-top:1em;"><a href="{{ upgrade_url }}" class="btn upgrade">Upgrade</a></div>
+    <div class="upgrade-notice">
+        <div class="alert warning">
+            <strong>High Usage Alert:</strong> You're approaching your daily limit. Consider upgrading for unlimited checks.
+        </div>
+        <a href="{{ upgrade_url }}" class="btn upgrade">Upgrade Plan</a>
+    </div>
     {% endif %}
 </div>
+
 <div class="card">
-    <h3>Perks</h3>
-    <ul>
-        <li>Pro Tools: {{ 'Enabled' if ents.pro_tools else 'Not available' }}</li>
-        <li>Priority Support: {{ ents.priority_support }}</li>
-    </ul>
+    <h3>Quick Actions</h3>
+    <div class="action-buttons">
+        <button class="btn" onclick="runTestCheck()">Test Claim Check</button>
+        <a href="/account" class="btn secondary">Account Settings</a>
+        <a href="/billing" class="btn secondary">Billing</a>
+    </div>
+    <div id="test-result" class="test-result"></div>
 </div>
+
 <div class="card">
-    <h3>Test a Claim Check</h3>
-    <button class="btn" onclick="runTestCheck()">Run Test Check</button>
-    <div id="test-result" style="margin-top:1em;"></div>
+    <h3>Pro Features</h3>
+    <div class="features-list">
+        <div class="feature-item">
+            <span class="feature-icon">🔍</span>
+            <div class="feature-content">
+                <h4>Advanced Claims Checking</h4>
+                <p>Access to comprehensive ingredient and claim validation across multiple countries.</p>
+            </div>
+        </div>
+        <div class="feature-item">
+            <span class="feature-icon">📊</span>
+            <div class="feature-content">
+                <h4>Detailed Analytics</h4>
+                <p>Track your usage patterns and get insights into your claims checking activities.</p>
+            </div>
+        </div>
+        <div class="feature-item">
+            <span class="feature-icon">🚀</span>
+            <div class="feature-content">
+                <h4>Priority Support</h4>
+                <p>Get faster response times and dedicated support for your claims checking needs.</p>
+            </div>
+        </div>
+    </div>
 </div>
+
+<style>
+.welcome-section {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.welcome-section h1 {
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin: 0;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--success) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.subtitle {
+    color: var(--text-muted);
+    font-size: 1.125rem;
+    margin: 0.5rem 0 0 0;
+}
+
+.plan-details {
+    margin-top: 1rem;
+}
+
+.usage-info {
+    margin-bottom: 1rem;
+}
+
+.usage-text {
+    font-size: 1.125rem;
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+}
+
+.upgrade-notice {
+    margin-top: 1rem;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
+}
+
+.test-result {
+    margin-top: 1rem;
+    padding: 1rem;
+    background: var(--darker);
+    border-radius: 0.5rem;
+    font-family: 'Monaco', 'Menlo', monospace;
+    font-size: 0.875rem;
+    white-space: pre-wrap;
+    display: none;
+}
+
+.features-list {
+    display: grid;
+    gap: 1.5rem;
+}
+
+.feature-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: 1rem;
+    background: var(--darker);
+    border-radius: 0.75rem;
+    border: 1px solid var(--border);
+}
+
+.feature-icon {
+    font-size: 1.5rem;
+    flex-shrink: 0;
+}
+
+.feature-content h4 {
+    margin: 0 0 0.5rem 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.feature-content p {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 0.875rem;
+    line-height: 1.5;
+}
+
+@media (max-width: 768px) {
+    .welcome-section h1 {
+        font-size: 2rem;
+    }
+    
+    .action-buttons {
+        flex-direction: column;
+    }
+    
+    .feature-item {
+        flex-direction: column;
+        text-align: center;
+    }
+}
+</style>
+
 <script>
 function runTestCheck() {
+    const resultDiv = document.getElementById('test-result');
+    resultDiv.style.display = 'block';
+    resultDiv.textContent = 'Running test check...';
+    
     fetch('/api/claims/check', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: 'Test', countries: ['NL'] })
+        body: JSON.stringify({ text: 'Test claim check', countries: ['NL'] })
     })
     .then(r => r.json())
     .then(data => {
-        document.getElementById('test-result').innerText = JSON.stringify(data, null, 2);
+        resultDiv.textContent = JSON.stringify(data, null, 2);
+        resultDiv.style.background = 'var(--success)';
+        resultDiv.style.color = 'white';
     })
     .catch(e => {
-        document.getElementById('test-result').innerText = 'Error: ' + e;
+        resultDiv.textContent = 'Error: ' + e.message;
+        resultDiv.style.background = 'var(--danger)';
+        resultDiv.style.color = 'white';
     });
 }
 </script>
