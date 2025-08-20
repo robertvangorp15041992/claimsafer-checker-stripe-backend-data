@@ -340,3 +340,13 @@ def check_claims(ingredient: str, claim: str = None, category: str = None):
 def health_check():
     """Health check endpoint."""
     return {"status": "healthy", "data_loaded": df is not None}
+
+@app.get("/debug")
+def debug_info():
+    """Debug endpoint to see which app is running."""
+    return {
+        "app": "NEW_FASTAPI_BACKEND",
+        "version": "1.0.0",
+        "features": ["stripe", "auth", "dashboard", "ingredient_checker"],
+        "endpoints_available": True
+    }
