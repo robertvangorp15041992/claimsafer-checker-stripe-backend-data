@@ -51,7 +51,6 @@ def create_test_user(
     email: str = "robertvgorp@gmail.com",
     password: str = "test123456",
     tier: Tier = Tier.pro,
-    role: str = "user",
     is_active: bool = True,
     db: Session = Depends(get_db)
 ):
@@ -59,42 +58,44 @@ def create_test_user(
     Create a test user for development/testing purposes.
     No authentication required for testing.
     """
-    # Check if user already exists
-    existing_user = get_user_by_email(db, email)
-    if existing_user:
+    try:
+        # Check if user already exists
+        existing_user = get_user_by_email(db, email)
+        if existing_user:
+            return {
+                "message": "User already exists",
+                "user_id": existing_user.id,
+                "email": existing_user.email,
+                "tier": existing_user.tier.value
+            }
+        
+        # Create new user
+        password_hash = hash_password(password)
+        new_user = User(
+            email=email,
+            password_hash=password_hash,
+            is_active=is_active,
+            tier=tier,
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow()
+        )
+        
+        db.add(new_user)
+        db.commit()
+        db.refresh(new_user)
+        
         return {
-            "message": "User already exists",
-            "user_id": existing_user.id,
-            "email": existing_user.email,
-            "tier": existing_user.tier.value,
-            "role": existing_user.role
+            "message": "Test user created successfully",
+            "user_id": new_user.id,
+            "email": new_user.email,
+            "tier": new_user.tier.value,
+            "is_active": new_user.is_active,
+            "created_at": new_user.created_at.isoformat()
         }
-    
-    # Create new user
-    password_hash = hash_password(password)
-    new_user = User(
-        email=email,
-        password_hash=password_hash,
-        is_active=is_active,
-        tier=tier,
-        role=role,
-        created_at=datetime.utcnow(),
-        updated_at=datetime.utcnow()
-    )
-    
-    db.add(new_user)
-    db.commit()
-    db.refresh(new_user)
-    
-    return {
-        "message": "Test user created successfully",
-        "user_id": new_user.id,
-        "email": new_user.email,
-        "tier": new_user.tier.value,
-        "role": new_user.role,
-        "is_active": new_user.is_active,
-        "created_at": new_user.created_at.isoformat()
-    }
+    except Exception as e:
+        print(f"Error creating test user: {e}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error creating user: {str(e)}")
 
 @router.post("/create-admin-user")
 def create_admin_user(
@@ -105,37 +106,40 @@ def create_admin_user(
     """
     Create an admin user for development/testing purposes.
     """
-    # Check if user already exists
-    existing_user = get_user_by_email(db, email)
-    if existing_user:
+    try:
+        # Check if user already exists
+        existing_user = get_user_by_email(db, email)
+        if existing_user:
+            return {
+                "message": "Admin user already exists",
+                "user_id": existing_user.id,
+                "email": existing_user.email,
+                "tier": existing_user.tier.value
+            }
+        
+        # Create new admin user
+        password_hash = hash_password(password)
+        new_user = User(
+            email=email,
+            password_hash=password_hash,
+            is_active=True,
+            tier=Tier.enterprise,  # Admin gets highest tier
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow()
+        )
+        
+        db.add(new_user)
+        db.commit()
+        db.refresh(new_user)
+        
         return {
-            "message": "Admin user already exists",
-            "user_id": existing_user.id,
-            "email": existing_user.email,
-            "tier": existing_user.tier.value
+            "message": "Admin user created successfully",
+            "user_id": new_user.id,
+            "email": new_user.email,
+            "tier": new_user.tier.value,
+            "created_at": new_user.created_at.isoformat()
         }
-    
-    # Create new admin user
-    password_hash = hash_password(password)
-    new_user = User(
-        email=email,
-        password_hash=password_hash,
-        is_active=True,
-        tier=Tier.enterprise,  # Admin gets highest tier
-        role="admin",  # Set admin role
-        created_at=datetime.utcnow(),
-        updated_at=datetime.utcnow()
-    )
-    
-    db.add(new_user)
-    db.commit()
-    db.refresh(new_user)
-    
-    return {
-        "message": "Admin user created successfully",
-        "user_id": new_user.id,
-        "email": new_user.email,
-        "tier": new_user.tier.value,
-        "role": new_user.role,
-        "created_at": new_user.created_at.isoformat()
-    }
+    except Exception as e:
+        print(f"Error creating admin user: {e}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error creating admin user: {str(e)}")
