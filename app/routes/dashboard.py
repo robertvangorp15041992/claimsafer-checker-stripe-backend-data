@@ -46,11 +46,15 @@ def dashboard(request: Request, db: Session = Depends(get_db), user=Depends(requ
 
 # --- Account ---
 @router.get("/account", response_class=HTMLResponse)
-def account(request: Request, user=Depends(require_active_user)):
+def account(request: Request, db: Session = Depends(get_db), user=Depends(require_active_user)):
+    ents = get_entitlements(user.tier)
+    counter = get_or_create_today_counter(db, user.id)
     csrf_token = generate_csrf_token()
     response = templates.TemplateResponse("account.html", {
         "request": request,
         "user": user,
+        "ents": ents,
+        "used": counter.daily_checks_used,
         "csrf_token": csrf_token,
     })
     response.set_cookie("csrf_token", csrf_token, httponly=False, samesite="lax")
@@ -92,13 +96,15 @@ def send_magic_link(request: Request, user=Depends(require_active_user)):
 
 # --- Billing ---
 @router.get("/billing", response_class=HTMLResponse)
-def billing(request: Request, user=Depends(require_active_user)):
+def billing(request: Request, db: Session = Depends(get_db), user=Depends(require_active_user)):
     ents = get_entitlements(user.tier)
+    counter = get_or_create_today_counter(db, user.id)
     csrf_token = generate_csrf_token()
     response = templates.TemplateResponse("billing.html", {
         "request": request,
         "user": user,
         "ents": ents,
+        "used": counter.daily_checks_used,
         "csrf_token": csrf_token,
         "upgrade_url": UPGRADE_URL,
     })
