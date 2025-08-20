@@ -1,5 +1,7 @@
 import os
 import json
+import pandas as pd
+import numpy as np
 from fastapi import FastAPI, Request, Depends, Form, HTTPException, status
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from sqlalchemy.orm import Session
@@ -19,6 +21,15 @@ from app.routes.admin import router as admin_router
 from fastapi.templating import Jinja2Templates
 from app.routes.dashboard import router as dashboard_router
 from starlette.middleware.sessions import SessionMiddleware
+
+# Import ingredient checker functionality
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+from rapidfuzz import fuzz, process
+from nltk.stem.snowball import SnowballStemmer
+import re
+from pathlib import Path
+from unicodedata import normalize as u_normalize
 
 load_dotenv()
 STRIPE_API_KEY = os.getenv("STRIPE_API_KEY")
@@ -161,3 +172,161 @@ app.include_router(auth_router, prefix="")
 app.include_router(limits_router)
 app.include_router(admin_router)
 app.include_router(dashboard_router)
+
+# ----------------------------------------------------
+# Ingredient Checker Functionality
+# ----------------------------------------------------
+
+# Load CSV data on startup
+CSV_PATH = 'masterfile_claims.csv'
+df = None
+gpt_variations = {}
+
+def load_data():
+    global df, gpt_variations
+    try:
+        print("🔍 Looking for CSV file at:", CSV_PATH)
+        print("📁 Current working directory:", os.getcwd())
+        print("📋 Files in current directory:", os.listdir('.'))
+        
+        if os.path.exists(CSV_PATH):
+            print("✅ Successfully loaded CSV with", len(pd.read_csv(CSV_PATH)), "rows")
+            df = pd.read_csv(CSV_PATH)
+            print("📊 DataFrame columns:", list(df.columns))
+            print("🎯 Sample data - first 3 rows:")
+            print(df.head(3))
+        else:
+            print("❌ CSV file not found!")
+            
+        # Load GPT variations
+        gpt_file = 'gpt_claim_variations.json'
+        if os.path.exists(gpt_file):
+            with open(gpt_file, 'r') as f:
+                gpt_variations = json.load(f)
+            print("✅ Loaded", len(gpt_variations), "GPT claim variations")
+        else:
+            print("❌ GPT variations file not found!")
+            
+    except Exception as e:
+        print("❌ Error loading data:", e)
+
+# Load data on startup
+@app.on_event("startup")
+def startup_event():
+    load_data()
+
+def normalize_text(s: str) -> str:
+    """Lowercase, remove accents, punctuation, collapse whitespace."""
+    if not isinstance(s, str):
+        return ""
+    s = u_normalize("NFKD", s).encode("ascii", "ignore").decode("ascii")
+    s = s.lower()
+    s = re.sub(r"[^a-z0-9\s]", " ", s)
+    s = re.sub(r"\s+", " ", s).strip()
+    return s
+
+@app.get("/categories")
+def get_categories():
+    """Get all available categories."""
+    if df is None:
+        raise HTTPException(status_code=500, detail="Data not loaded")
+    
+    categories = df['Categories'].dropna().unique().tolist()
+    return {"categories": categories}
+
+@app.get("/_columns")
+def get_columns():
+    """Get DataFrame columns for debugging."""
+    if df is None:
+        raise HTTPException(status_code=500, detail="Data not loaded")
+    
+    return {"columns": list(df.columns)}
+
+@app.post("/search-by-ingredient")
+def search_by_ingredient(ingredient: str):
+    """Search claims by ingredient name."""
+    if df is None:
+        raise HTTPException(status_code=500, detail="Data not loaded")
+    
+    normalized_ingredient = normalize_text(ingredient)
+    results = []
+    
+    for _, row in df.iterrows():
+        row_ingredient = normalize_text(str(row['Ingredient']))
+        if normalized_ingredient in row_ingredient or row_ingredient in normalized_ingredient:
+            results.append({
+                "ingredient": row['Ingredient'],
+                "country": row['Country'],
+                "claim": row['Claim'],
+                "dosage": row['Dosage'],
+                "category": row['Categories']
+            })
+    
+    return {"results": results[:50]}  # Limit to 50 results
+
+@app.post("/search-by-claim")
+def search_by_claim(claim: str):
+    """Search ingredients by claim text."""
+    if df is None:
+        raise HTTPException(status_code=500, detail="Data not loaded")
+    
+    normalized_claim = normalize_text(claim)
+    results = []
+    
+    for _, row in df.iterrows():
+        row_claim = normalize_text(str(row['Claim']))
+        if normalized_claim in row_claim or row_claim in normalized_claim:
+            results.append({
+                "ingredient": row['Ingredient'],
+                "country": row['Country'],
+                "claim": row['Claim'],
+                "dosage": row['Dosage'],
+                "category": row['Categories']
+            })
+    
+    return {"results": results[:50]}  # Limit to 50 results
+
+@app.get("/get-variations")
+def get_variations():
+    """Get GPT claim variations."""
+    return {"variations": gpt_variations}
+
+@app.post("/check-claims")
+def check_claims(ingredient: str, claim: str = None, category: str = None):
+    """Check if a claim is valid for an ingredient."""
+    if df is None:
+        raise HTTPException(status_code=500, detail="Data not loaded")
+    
+    normalized_ingredient = normalize_text(ingredient)
+    results = []
+    
+    for _, row in df.iterrows():
+        row_ingredient = normalize_text(str(row['Ingredient']))
+        if normalized_ingredient in row_ingredient or row_ingredient in normalized_ingredient:
+            if claim:
+                row_claim = normalize_text(str(row['Claim']))
+                normalized_claim = normalize_text(claim)
+                if normalized_claim not in row_claim:
+                    continue
+            
+            if category:
+                row_category = normalize_text(str(row['Categories']))
+                normalized_category = normalize_text(category)
+                if normalized_category not in row_category:
+                    continue
+            
+            results.append({
+                "ingredient": row['Ingredient'],
+                "country": row['Country'],
+                "claim": row['Claim'],
+                "dosage": row['Dosage'],
+                "category": row['Categories'],
+                "valid": True
+            })
+    
+    return {"results": results, "valid": len(results) > 0}
+
+@app.get("/health")
+def health_check():
+    """Health check endpoint."""
+    return {"status": "healthy", "data_loaded": df is not None}
