@@ -9,5 +9,6 @@
     "healthcheckTimeout": 100,
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 10
-  }
+  },
+  "_comment": "Force Railway to use app/main.py instead of old ingredient_checker.py"
 } 
