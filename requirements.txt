@@ -21,3 +21,5 @@ python-multipart
 PyYAML
 starlette
 pydantic[email]
+python-jose[cryptography]
+numpy
