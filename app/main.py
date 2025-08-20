@@ -21,6 +21,7 @@ from app.routes.admin import router as admin_router
 from fastapi.templating import Jinja2Templates
 from app.routes.dashboard import router as dashboard_router
 from starlette.middleware.sessions import SessionMiddleware
+from sqlalchemy import text
 
 # Import ingredient checker functionality
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -57,6 +58,22 @@ def on_startup():
     try:
         Base.metadata.create_all(bind=engine)
         print("✅ Database tables created successfully")
+        
+        # Run database migration to add role column if needed
+        try:
+            with engine.connect() as conn:
+                # Check if role column exists
+                try:
+                    conn.execute(text("SELECT role FROM users LIMIT 1"))
+                    print("✅ Role column already exists")
+                except Exception:
+                    print("📝 Adding role column to users table...")
+                    conn.execute(text("ALTER TABLE users ADD COLUMN role VARCHAR(50)"))
+                    conn.commit()
+                    print("✅ Role column added successfully")
+        except Exception as e:
+            print(f"⚠️ Migration warning: {e}")
+            
     except Exception as e:
         print(f"❌ Database startup error: {e}")
     
