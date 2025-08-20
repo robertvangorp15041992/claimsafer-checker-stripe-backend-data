@@ -42,6 +42,16 @@ stripe.api_key = STRIPE_API_KEY
 app = FastAPI()
 app.add_middleware(SessionMiddleware, secret_key=SESSION_SECRET, session_cookie="session", https_only=APP_BASE_URL.startswith("https://"), same_site="lax")
 
+@app.get("/")
+def root():
+    """Root endpoint to test if routing works."""
+    return {"message": "NEW_FASTAPI_BACKEND_IS_RUNNING", "status": "success"}
+
+@app.get("/test")
+def test():
+    """Simple test endpoint."""
+    return {"message": "Test endpoint works!"}
+
 @app.on_event("startup")
 def on_startup():
     try:
