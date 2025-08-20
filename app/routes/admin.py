@@ -9,7 +9,7 @@ from app.models import User, Tier, UsageCounter, MembershipAudit
 from app.services.users import get_user_by_email
 from app.services.usage import get_user_usage_days
 from app.dependencies import require_role
-from app.utils import hash_password
+from app.security import hash_password
 from app.repository import create_user
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
