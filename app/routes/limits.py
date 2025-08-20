@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Request, Body
+from fastapi import APIRouter, Depends, Request, Body, HTTPException
 from sqlalchemy.orm import Session
 from app.dependencies import get_current_user
 from app.gating import load_entitlements, enforce_countries_limit, meter_daily_check, require_capability
@@ -29,4 +29,8 @@ def claims_check(
 
 @router.get("/api/tools/pro-feature")
 def pro_feature(user = Depends(require_capability("pro_tools"))):
-    return {"ok": True, "msg": "You have access to pro tools!"}
+    try:
+        return {"ok": True, "msg": "You have access to pro tools!", "tier": user.tier.value}
+    except Exception as e:
+        print(f"Error in pro-feature endpoint: {e}")
+        raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
