@@ -22,6 +22,7 @@ from fastapi.templating import Jinja2Templates
 from app.routes.dashboard import router as dashboard_router
 from starlette.middleware.sessions import SessionMiddleware
 from sqlalchemy import text
+from datetime import datetime
 
 # Import ingredient checker functionality
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -62,17 +63,27 @@ def on_startup():
         # Run database migration to add role column if needed
         try:
             with engine.connect() as conn:
-                # Check if role column exists
+                # Check if role column exists by trying to select it
                 try:
                     conn.execute(text("SELECT role FROM users LIMIT 1"))
                     print("✅ Role column already exists")
-                except Exception:
-                    print("📝 Adding role column to users table...")
-                    conn.execute(text("ALTER TABLE users ADD COLUMN role VARCHAR(50)"))
+                except Exception as e:
+                    print(f"📝 Role column doesn't exist, adding it... Error: {e}")
+                    # Add role column with default value
+                    conn.execute(text("ALTER TABLE users ADD COLUMN role VARCHAR(50) DEFAULT 'user'"))
                     conn.commit()
                     print("✅ Role column added successfully")
         except Exception as e:
             print(f"⚠️ Migration warning: {e}")
+            # Try alternative approach - recreate table if needed
+            try:
+                print("🔄 Attempting alternative migration approach...")
+                with engine.connect() as conn:
+                    conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(50) DEFAULT 'user'"))
+                    conn.commit()
+                    print("✅ Alternative migration successful")
+            except Exception as e2:
+                print(f"❌ Alternative migration also failed: {e2}")
             
     except Exception as e:
         print(f"❌ Database startup error: {e}")
