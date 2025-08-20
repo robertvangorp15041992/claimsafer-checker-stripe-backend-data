@@ -16,3 +16,4 @@ jinja2
 prometheus-client
 xhtml2pdf
 rapidfuzz
+fastapi-mail
