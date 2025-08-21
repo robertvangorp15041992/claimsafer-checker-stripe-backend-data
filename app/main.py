@@ -19,7 +19,7 @@ from app.auth import router as auth_router
 from app.routes.limits import router as limits_router
 from app.routes.admin import router as admin_router
 from fastapi.templating import Jinja2Templates
-from app.routes.dashboard import router as dashboard_router
+# from app.routes.dashboard import router as dashboard_router  # Temporarily disabled
 from starlette.middleware.sessions import SessionMiddleware
 from sqlalchemy import text
 from datetime import datetime
@@ -219,7 +219,7 @@ app.include_router(usage_router, prefix="")
 app.include_router(auth_router, prefix="")
 app.include_router(limits_router)
 app.include_router(admin_router)
-app.include_router(dashboard_router)
+# app.include_router(dashboard_router) # Temporarily disabled
 
 # ----------------------------------------------------
 # Ingredient Checker Functionality
@@ -450,6 +450,763 @@ def test_page():
             <a href="/dashboard" class="btn">Go to Dashboard</a>
             <a href="/account" class="btn">Go to Account</a>
             <a href="/billing" class="btn">Go to Billing</a>
+        </div>
+    </body>
+    </html>
+    """
+
+@app.get("/dashboard", response_class=HTMLResponse)
+def dashboard_simple():
+    """Simple dashboard page with ClaimSafer styling."""
+    return """
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>ClaimSafer Dashboard</title>
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+        <style>
+            :root {
+                --primary: #2563eb;
+                --primary-dark: #1d4ed8;
+                --secondary: #64748b;
+                --success: #10b981;
+                --warning: #f59e0b;
+                --danger: #ef4444;
+                --dark: #0f172a;
+                --darker: #020617;
+                --light: #f8fafc;
+                --border: #334155;
+                --card-bg: #1e293b;
+                --text: #e2e8f0;
+                --text-muted: #94a3b8;
+            }
+            
+            * { box-sizing: border-box; }
+            
+            body { 
+                background: linear-gradient(135deg, var(--darker) 0%, var(--dark) 100%);
+                color: var(--text);
+                font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+                margin: 0;
+                line-height: 1.6;
+                min-height: 100vh;
+            }
+            
+            nav { 
+                background: rgba(30, 41, 59, 0.95);
+                backdrop-filter: blur(10px);
+                border-bottom: 1px solid var(--border);
+                padding: 1rem 2rem;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                position: sticky;
+                top: 0;
+                z-index: 100;
+            }
+            
+            .nav-brand {
+                font-size: 1.5rem;
+                font-weight: 700;
+                color: var(--primary);
+                text-decoration: none;
+            }
+            
+            .nav-links {
+                display: flex;
+                gap: 2rem;
+                align-items: center;
+            }
+            
+            nav a { 
+                color: var(--text);
+                text-decoration: none;
+                font-weight: 500;
+                transition: color 0.2s;
+                padding: 0.5rem 1rem;
+                border-radius: 0.5rem;
+            }
+            
+            nav a:hover { 
+                color: var(--primary);
+                background: rgba(37, 99, 235, 0.1);
+            }
+            
+            .container { 
+                max-width: 1200px;
+                margin: 0 auto;
+                padding: 2rem;
+            }
+            
+            .card { 
+                background: var(--card-bg);
+                border: 1px solid var(--border);
+                border-radius: 1rem;
+                padding: 1.5rem;
+                margin-bottom: 1.5rem;
+                box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+                transition: transform 0.2s, box-shadow 0.2s;
+            }
+            
+            .card:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 10px 25px -3px rgba(0, 0, 0, 0.2);
+            }
+            
+            .card h3 {
+                margin: 0 0 1rem 0;
+                font-size: 1.25rem;
+                font-weight: 600;
+                color: var(--text);
+            }
+            
+            .badge { 
+                display: inline-block;
+                padding: 0.25rem 0.75rem;
+                border-radius: 9999px;
+                background: var(--primary);
+                color: white;
+                font-size: 0.875rem;
+                font-weight: 500;
+                margin-left: 0.5rem;
+            }
+            
+            .badge.pro { background: var(--success); }
+            .badge.enterprise { background: var(--warning); }
+            .badge.free { background: var(--secondary); }
+            
+            .btn { 
+                background: var(--primary);
+                color: white;
+                border: none;
+                border-radius: 0.5rem;
+                padding: 0.75rem 1.5rem;
+                cursor: pointer;
+                font-size: 0.875rem;
+                font-weight: 500;
+                transition: all 0.2s;
+                text-decoration: none;
+                display: inline-block;
+            }
+            
+            .btn:hover {
+                background: var(--primary-dark);
+                transform: translateY(-1px);
+            }
+            
+            .btn.secondary {
+                background: var(--secondary);
+            }
+            
+            .btn.secondary:hover {
+                background: #475569;
+            }
+            
+            .stats-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+                gap: 1.5rem;
+                margin: 1.5rem 0;
+            }
+            
+            .stat-card {
+                background: var(--card-bg);
+                border: 1px solid var(--border);
+                border-radius: 0.75rem;
+                padding: 1.5rem;
+                text-align: center;
+            }
+            
+            .stat-number {
+                font-size: 2rem;
+                font-weight: 700;
+                color: var(--primary);
+                margin-bottom: 0.5rem;
+            }
+            
+            .stat-label {
+                color: var(--text-muted);
+                font-size: 0.875rem;
+                font-weight: 500;
+            }
+            
+            .welcome-section {
+                text-align: center;
+                margin-bottom: 2rem;
+            }
+            
+            .welcome-section h1 {
+                font-size: 2.5rem;
+                font-weight: 700;
+                margin: 0 0 0.5rem 0;
+                background: linear-gradient(135deg, var(--primary) 0%, var(--success) 100%);
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+                background-clip: text;
+            }
+            
+            .subtitle {
+                color: var(--text-muted);
+                font-size: 1.125rem;
+                margin: 0.5rem 0 0 0;
+            }
+            
+            @media (max-width: 768px) {
+                .container { padding: 1rem; }
+                nav { padding: 1rem; }
+                .nav-links { gap: 1rem; }
+                .stats-grid { grid-template-columns: 1fr; }
+            }
+        </style>
+    </head>
+    <body>
+        <nav>
+            <a href="/dashboard" class="nav-brand">ClaimSafer</a>
+            <div class="nav-links">
+                <a href="/dashboard">Dashboard</a>
+                <a href="/account">Account</a>
+                <a href="/billing">Billing</a>
+                <button class="btn secondary" style="border:none;">Logout</button>
+            </div>
+        </nav>
+        <div class="container">
+            <div class="welcome-section">
+                <h1>Welcome back, robertvgorp@gmail.com</h1>
+                <p class="subtitle">Your ClaimSafer Pro Dashboard</p>
+            </div>
+            
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-number">0</div>
+                    <div class="stat-label">Checks Used Today</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">200</div>
+                    <div class="stat-label">Daily Limit</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">5</div>
+                    <div class="stat-label">Countries per Check</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">0%</div>
+                    <div class="stat-label">Usage</div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h3>Your Plan <span class="badge pro">Pro</span></h3>
+                <p>You have access to all Pro features including advanced claims checking, priority support, and detailed analytics.</p>
+            </div>
+            
+            <div class="card">
+                <h3>Quick Actions</h3>
+                <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+                    <a href="/account" class="btn">Account Settings</a>
+                    <a href="/billing" class="btn secondary">Billing</a>
+                    <a href="/docs" class="btn secondary">API Docs</a>
+                </div>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+
+@app.get("/account", response_class=HTMLResponse)
+def account_simple():
+    """Simple account page with ClaimSafer styling."""
+    return """
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>ClaimSafer Account</title>
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+        <style>
+            :root {
+                --primary: #2563eb;
+                --primary-dark: #1d4ed8;
+                --secondary: #64748b;
+                --success: #10b981;
+                --warning: #f59e0b;
+                --danger: #ef4444;
+                --dark: #0f172a;
+                --darker: #020617;
+                --light: #f8fafc;
+                --border: #334155;
+                --card-bg: #1e293b;
+                --text: #e2e8f0;
+                --text-muted: #94a3b8;
+            }
+            
+            * { box-sizing: border-box; }
+            
+            body { 
+                background: linear-gradient(135deg, var(--darker) 0%, var(--dark) 100%);
+                color: var(--text);
+                font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+                margin: 0;
+                line-height: 1.6;
+                min-height: 100vh;
+            }
+            
+            nav { 
+                background: rgba(30, 41, 59, 0.95);
+                backdrop-filter: blur(10px);
+                border-bottom: 1px solid var(--border);
+                padding: 1rem 2rem;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                position: sticky;
+                top: 0;
+                z-index: 100;
+            }
+            
+            .nav-brand {
+                font-size: 1.5rem;
+                font-weight: 700;
+                color: var(--primary);
+                text-decoration: none;
+            }
+            
+            .nav-links {
+                display: flex;
+                gap: 2rem;
+                align-items: center;
+            }
+            
+            nav a { 
+                color: var(--text);
+                text-decoration: none;
+                font-weight: 500;
+                transition: color 0.2s;
+                padding: 0.5rem 1rem;
+                border-radius: 0.5rem;
+            }
+            
+            nav a:hover { 
+                color: var(--primary);
+                background: rgba(37, 99, 235, 0.1);
+            }
+            
+            .container { 
+                max-width: 1200px;
+                margin: 0 auto;
+                padding: 2rem;
+            }
+            
+            .card { 
+                background: var(--card-bg);
+                border: 1px solid var(--border);
+                border-radius: 1rem;
+                padding: 1.5rem;
+                margin-bottom: 1.5rem;
+                box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+                transition: transform 0.2s, box-shadow 0.2s;
+            }
+            
+            .card:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 10px 25px -3px rgba(0, 0, 0, 0.2);
+            }
+            
+            .card h3 {
+                margin: 0 0 1rem 0;
+                font-size: 1.25rem;
+                font-weight: 600;
+                color: var(--text);
+            }
+            
+            .badge { 
+                display: inline-block;
+                padding: 0.25rem 0.75rem;
+                border-radius: 9999px;
+                background: var(--primary);
+                color: white;
+                font-size: 0.875rem;
+                font-weight: 500;
+                margin-left: 0.5rem;
+            }
+            
+            .badge.pro { background: var(--success); }
+            .badge.enterprise { background: var(--warning); }
+            .badge.free { background: var(--secondary); }
+            
+            .btn { 
+                background: var(--primary);
+                color: white;
+                border: none;
+                border-radius: 0.5rem;
+                padding: 0.75rem 1.5rem;
+                cursor: pointer;
+                font-size: 0.875rem;
+                font-weight: 500;
+                transition: all 0.2s;
+                text-decoration: none;
+                display: inline-block;
+            }
+            
+            .btn:hover {
+                background: var(--primary-dark);
+                transform: translateY(-1px);
+            }
+            
+            .btn.secondary {
+                background: var(--secondary);
+            }
+            
+            .btn.secondary:hover {
+                background: #475569;
+            }
+            
+            .page-header {
+                text-align: center;
+                margin-bottom: 2rem;
+            }
+            
+            .page-header h1 {
+                font-size: 2.5rem;
+                font-weight: 700;
+                margin: 0 0 0.5rem 0;
+                background: linear-gradient(135deg, var(--primary) 0%, var(--success) 100%);
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+                background-clip: text;
+            }
+            
+            .page-header p {
+                color: var(--text-muted);
+                font-size: 1.125rem;
+                margin: 0;
+            }
+            
+            .settings-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+                gap: 2rem;
+            }
+            
+            .info-item {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 0.75rem 0;
+                border-bottom: 1px solid var(--border);
+            }
+            
+            .info-item:last-child {
+                border-bottom: none;
+            }
+            
+            .info-item label {
+                font-weight: 500;
+                color: var(--text-muted);
+            }
+            
+            .info-item span {
+                color: var(--text);
+                font-weight: 500;
+            }
+            
+            @media (max-width: 768px) {
+                .container { padding: 1rem; }
+                nav { padding: 1rem; }
+                .nav-links { gap: 1rem; }
+                .settings-grid { grid-template-columns: 1fr; }
+            }
+        </style>
+    </head>
+    <body>
+        <nav>
+            <a href="/dashboard" class="nav-brand">ClaimSafer</a>
+            <div class="nav-links">
+                <a href="/dashboard">Dashboard</a>
+                <a href="/account">Account</a>
+                <a href="/billing">Billing</a>
+                <button class="btn secondary" style="border:none;">Logout</button>
+            </div>
+        </nav>
+        <div class="container">
+            <div class="page-header">
+                <h1>Account Settings</h1>
+                <p>Manage your account preferences and security settings</p>
+            </div>
+            
+            <div class="settings-grid">
+                <div class="card">
+                    <h3>Profile Information</h3>
+                    <div class="info-item">
+                        <label>Email Address</label>
+                        <span>robertvgorp@gmail.com</span>
+                    </div>
+                    <div class="info-item">
+                        <label>Account Status</label>
+                        <span class="badge success">Active</span>
+                    </div>
+                    <div class="info-item">
+                        <label>Plan</label>
+                        <span class="badge pro">Pro</span>
+                    </div>
+                    <div class="info-item">
+                        <label>Member Since</label>
+                        <span>August 20, 2025</span>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <h3>Security</h3>
+                    <p>Change your password and manage security settings.</p>
+                    <a href="/dashboard" class="btn">Back to Dashboard</a>
+                </div>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+
+@app.get("/billing", response_class=HTMLResponse)
+def billing_simple():
+    """Simple billing page with ClaimSafer styling."""
+    return """
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>ClaimSafer Billing</title>
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+        <style>
+            :root {
+                --primary: #2563eb;
+                --primary-dark: #1d4ed8;
+                --secondary: #64748b;
+                --success: #10b981;
+                --warning: #f59e0b;
+                --danger: #ef4444;
+                --dark: #0f172a;
+                --darker: #020617;
+                --light: #f8fafc;
+                --border: #334155;
+                --card-bg: #1e293b;
+                --text: #e2e8f0;
+                --text-muted: #94a3b8;
+            }
+            
+            * { box-sizing: border-box; }
+            
+            body { 
+                background: linear-gradient(135deg, var(--darker) 0%, var(--dark) 100%);
+                color: var(--text);
+                font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+                margin: 0;
+                line-height: 1.6;
+                min-height: 100vh;
+            }
+            
+            nav { 
+                background: rgba(30, 41, 59, 0.95);
+                backdrop-filter: blur(10px);
+                border-bottom: 1px solid var(--border);
+                padding: 1rem 2rem;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                position: sticky;
+                top: 0;
+                z-index: 100;
+            }
+            
+            .nav-brand {
+                font-size: 1.5rem;
+                font-weight: 700;
+                color: var(--primary);
+                text-decoration: none;
+            }
+            
+            .nav-links {
+                display: flex;
+                gap: 2rem;
+                align-items: center;
+            }
+            
+            nav a { 
+                color: var(--text);
+                text-decoration: none;
+                font-weight: 500;
+                transition: color 0.2s;
+                padding: 0.5rem 1rem;
+                border-radius: 0.5rem;
+            }
+            
+            nav a:hover { 
+                color: var(--primary);
+                background: rgba(37, 99, 235, 0.1);
+            }
+            
+            .container { 
+                max-width: 1200px;
+                margin: 0 auto;
+                padding: 2rem;
+            }
+            
+            .card { 
+                background: var(--card-bg);
+                border: 1px solid var(--border);
+                border-radius: 1rem;
+                padding: 1.5rem;
+                margin-bottom: 1.5rem;
+                box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+                transition: transform 0.2s, box-shadow 0.2s;
+            }
+            
+            .card:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 10px 25px -3px rgba(0, 0, 0, 0.2);
+            }
+            
+            .card h3 {
+                margin: 0 0 1rem 0;
+                font-size: 1.25rem;
+                font-weight: 600;
+                color: var(--text);
+            }
+            
+            .badge { 
+                display: inline-block;
+                padding: 0.25rem 0.75rem;
+                border-radius: 9999px;
+                background: var(--primary);
+                color: white;
+                font-size: 0.875rem;
+                font-weight: 500;
+                margin-left: 0.5rem;
+            }
+            
+            .badge.pro { background: var(--success); }
+            .badge.enterprise { background: var(--warning); }
+            .badge.free { background: var(--secondary); }
+            
+            .btn { 
+                background: var(--primary);
+                color: white;
+                border: none;
+                border-radius: 0.5rem;
+                padding: 0.75rem 1.5rem;
+                cursor: pointer;
+                font-size: 0.875rem;
+                font-weight: 500;
+                transition: all 0.2s;
+                text-decoration: none;
+                display: inline-block;
+            }
+            
+            .btn:hover {
+                background: var(--primary-dark);
+                transform: translateY(-1px);
+            }
+            
+            .btn.secondary {
+                background: var(--secondary);
+            }
+            
+            .btn.secondary:hover {
+                background: #475569;
+            }
+            
+            .page-header {
+                text-align: center;
+                margin-bottom: 2rem;
+            }
+            
+            .page-header h1 {
+                font-size: 2.5rem;
+                font-weight: 700;
+                margin: 0 0 0.5rem 0;
+                background: linear-gradient(135deg, var(--primary) 0%, var(--success) 100%);
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+                background-clip: text;
+            }
+            
+            .page-header p {
+                color: var(--text-muted);
+                font-size: 1.125rem;
+                margin: 0;
+            }
+            
+            .billing-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+                gap: 2rem;
+            }
+            
+            .info-item {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 0.75rem 0;
+                border-bottom: 1px solid var(--border);
+            }
+            
+            .info-item:last-child {
+                border-bottom: none;
+            }
+            
+            .info-item label {
+                font-weight: 500;
+                color: var(--text-muted);
+            }
+            
+            .info-item span {
+                color: var(--text);
+                font-weight: 500;
+            }
+            
+            @media (max-width: 768px) {
+                .container { padding: 1rem; }
+                nav { padding: 1rem; }
+                .nav-links { gap: 1rem; }
+                .billing-grid { grid-template-columns: 1fr; }
+            }
+        </style>
+    </head>
+    <body>
+        <nav>
+            <a href="/dashboard" class="nav-brand">ClaimSafer</a>
+            <div class="nav-links">
+                <a href="/dashboard">Dashboard</a>
+                <a href="/account">Account</a>
+                <a href="/billing">Billing</a>
+                <button class="btn secondary" style="border:none;">Logout</button>
+            </div>
+        </nav>
+        <div class="container">
+            <div class="page-header">
+                <h1>Billing & Subscription</h1>
+                <p>Manage your subscription and billing preferences</p>
+            </div>
+            
+            <div class="billing-grid">
+                <div class="card">
+                    <h3>Current Plan</h3>
+                    <div class="info-item">
+                        <label>Plan</label>
+                        <span class="badge pro">Pro</span>
+                    </div>
+                    <div class="info-item">
+                        <label>Price</label>
+                        <span>$29/month</span>
+                    </div>
+                    <div class="info-item">
+                        <label>Status</label>
+                        <span class="badge success">Active</span>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <h3>Billing Actions</h3>
+                    <p>Manage your billing and subscription settings.</p>
+                    <a href="/dashboard" class="btn">Back to Dashboard</a>
+                </div>
+            </div>
         </div>
     </body>
     </html>
