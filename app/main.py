@@ -23,6 +23,10 @@ from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 from sqlalchemy import text
 from datetime import datetime
+from app.middleware import SecurityHeadersMiddleware, TimingAccessLogMiddleware, ErrorEnvelopeMiddleware
+from app.routes.ops import router as ops_router
+from app.services.entitlements import get_entitlements
+from typing import List
 
 # Import ingredient checker functionality
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -37,12 +41,41 @@ load_dotenv()
 STRIPE_API_KEY = os.getenv("STRIPE_API_KEY")
 STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
 APP_BASE_URL = os.getenv("APP_BASE_URL", "http://localhost:8000")
-SESSION_SECRET = os.getenv("SESSION_SECRET", "dev-session-secret")
+SESSION_SECRET = os.getenv("SESSION_SECRET")
+
+# Validate required environment variables for production
+if not STRIPE_API_KEY:
+    print("⚠️ WARNING: STRIPE_API_KEY not set")
+if not STRIPE_WEBHOOK_SECRET:
+    print("⚠️ WARNING: STRIPE_WEBHOOK_SECRET not set")
+if SESSION_SECRET == "dev-session-secret" or not SESSION_SECRET:
+    print("⚠️ WARNING: Using default SESSION_SECRET - change for production!")
 
 stripe.api_key = STRIPE_API_KEY
 
 app = FastAPI()
 app.add_middleware(SessionMiddleware, secret_key=SESSION_SECRET, session_cookie="session", https_only=APP_BASE_URL.startswith("https://"), same_site="lax")
+
+# Add production middleware
+app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(TimingAccessLogMiddleware)
+app.add_middleware(ErrorEnvelopeMiddleware)
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    """Global exception handler for production."""
+    import traceback
+    print(f"❌ Unhandled exception: {exc}")
+    print(f"📍 Request path: {request.url.path}")
+    print(f"🔍 Traceback: {traceback.format_exc()}")
+    
+    return JSONResponse(
+        status_code=500,
+        content={
+            "error": "Internal server error",
+            "detail": "An unexpected error occurred" if os.getenv("ENVIRONMENT") == "production" else str(exc)
+        }
+    )
 
 @app.get("/")
 def root():
@@ -219,6 +252,7 @@ app.include_router(usage_router, prefix="")
 app.include_router(auth_router, prefix="")
 app.include_router(limits_router)
 app.include_router(admin_router)
+app.include_router(ops_router)
 # app.include_router(dashboard_router) # Temporarily disabled
 
 # ----------------------------------------------------
@@ -335,9 +369,45 @@ def search_by_claim(claim: str):
     return {"results": results[:50]}  # Limit to 50 results
 
 @app.get("/get-variations")
-def get_variations():
-    """Get GPT claim variations."""
-    return {"variations": gpt_variations}
+def get_variations(claim: str, refresh: bool = False, user: User = Depends(get_current_user)):
+    """Get GPT claim variations with tier-based limits and refresh functionality."""
+    from app.services.entitlements import get_entitlements
+    
+    # Get user entitlements
+    ents = get_entitlements(user.tier)
+    variations_limit = ents.get("variations_per_claim", 3)
+    can_refresh = ents.get("can_refresh_variations", False)
+    
+    # Check if user can refresh and is requesting refresh
+    if refresh and not can_refresh:
+        raise HTTPException(
+            status_code=403, 
+            detail="Refresh functionality requires Pro or Enterprise tier"
+        )
+    
+    # Find variations for the claim
+    variations = []
+    for item in gpt_variations:
+        if normalize_text(item.get("Original", "")) == normalize_text(claim):
+            variations = item.get("Variations", [])
+            break
+    
+    # Apply tier-based limits
+    if variations_limit == -1:
+        # Enterprise: show all variations (usually 10)
+        limited_variations = variations
+    else:
+        # Other tiers: limit to specified number
+        limited_variations = variations[:variations_limit]
+    
+    return {
+        "variations": limited_variations,
+        "total_available": len(variations),
+        "showing": len(limited_variations),
+        "can_refresh": can_refresh,
+        "tier": user.tier.value,
+        "refresh_requested": refresh
+    }
 
 @app.post("/check-claims")
 def check_claims(ingredient: str, claim: str = None, category: str = None):
@@ -373,6 +443,136 @@ def check_claims(ingredient: str, claim: str = None, category: str = None):
             })
     
     return {"results": results, "valid": len(results) > 0}
+
+@app.post("/bulk-check-ingredients")
+def bulk_check_ingredients(
+    ingredients: List[str], 
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Bulk check multiple ingredients (Enterprise only)."""
+    from app.services.entitlements import get_entitlements
+    
+    # Check if user has bulk checking permission
+    ents = get_entitlements(user.tier)
+    if not ents.get("bulk_checking", False):
+        raise HTTPException(
+            status_code=403, 
+            detail="Bulk checking requires Enterprise tier"
+        )
+    
+    if df is None:
+        raise HTTPException(status_code=500, detail="Data not loaded")
+    
+    if len(ingredients) > 10:  # Limit to 10 ingredients per request
+        raise HTTPException(status_code=400, detail="Maximum 10 ingredients per bulk check")
+    
+    results = []
+    for ingredient in ingredients:
+        normalized_ingredient = normalize_text(ingredient)
+        ingredient_results = []
+        
+        for _, row in df.iterrows():
+            row_ingredient = normalize_text(str(row['Ingredient']))
+            if normalized_ingredient in row_ingredient or row_ingredient in normalized_ingredient:
+                ingredient_results.append({
+                    "ingredient": row['Ingredient'],
+                    "country": row['Country'],
+                    "claim": row['Claim'],
+                    "dosage": row['Dosage'],
+                    "category": row['Categories'],
+                    "valid": True
+                })
+        
+        results.append({
+            "input_ingredient": ingredient,
+            "matches": ingredient_results,
+            "total_matches": len(ingredient_results)
+        })
+    
+    return {
+        "bulk_results": results,
+        "total_ingredients_checked": len(ingredients),
+        "tier": user.tier.value
+    }
+
+@app.post("/export-to-pdf")
+def export_to_pdf(
+    data: dict,
+    user: User = Depends(get_current_user)
+):
+    """Export search results to PDF (all tiers)."""
+    from app.services.entitlements import get_entitlements
+    from xhtml2pdf import pisa
+    import tempfile
+    import base64
+    
+    # Check if user has PDF export permission
+    ents = get_entitlements(user.tier)
+    if not ents.get("pdf_export", False):
+        raise HTTPException(
+            status_code=403, 
+            detail="PDF export not available for your tier"
+        )
+    
+    # Create HTML content for PDF
+    html_content = f"""
+    <html>
+    <head>
+        <style>
+            body {{ font-family: Arial, sans-serif; margin: 20px; }}
+            h1 {{ color: #2563eb; }}
+            .result {{ margin: 10px 0; padding: 10px; border: 1px solid #ddd; }}
+            .ingredient {{ font-weight: bold; color: #059669; }}
+            .claim {{ font-style: italic; }}
+            .country {{ color: #7c3aed; }}
+        </style>
+    </head>
+    <body>
+        <h1>ClaimSafer Report</h1>
+        <p><strong>Generated by:</strong> {user.email}</p>
+        <p><strong>Tier:</strong> {user.tier.value}</p>
+        <p><strong>Date:</strong> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
+        <hr>
+    """
+    
+    # Add results to PDF
+    if "results" in data:
+        for result in data["results"]:
+            html_content += f"""
+            <div class="result">
+                <div class="ingredient">{result.get('ingredient', 'N/A')}</div>
+                <div class="claim">{result.get('claim', 'N/A')}</div>
+                <div class="country">Country: {result.get('country', 'N/A')}</div>
+                <div>Dosage: {result.get('dosage', 'N/A')}</div>
+                <div>Category: {result.get('category', 'N/A')}</div>
+            </div>
+            """
+    
+    html_content += "</body></html>"
+    
+    # Generate PDF
+    try:
+        with tempfile.NamedTemporaryFile(suffix='.pdf', delete=False) as tmp_file:
+            pisa.CreatePDF(html_content, tmp_file)
+            tmp_file_path = tmp_file.name
+        
+        # Read PDF and encode as base64
+        with open(tmp_file_path, 'rb') as pdf_file:
+            pdf_content = pdf_file.read()
+        
+        # Clean up temp file
+        import os
+        os.unlink(tmp_file_path)
+        
+        return {
+            "pdf_base64": base64.b64encode(pdf_content).decode('utf-8'),
+            "filename": f"claimsafer_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
+            "tier": user.tier.value
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"PDF generation failed: {str(e)}")
 
 @app.get("/health")
 def health_check():
@@ -695,8 +895,15 @@ def dashboard_simple():
             </div>
             
             <div class="card">
-                <h3>Your Plan <span class="badge pro">Pro</span></h3>
-                <p>You have access to all Pro features including advanced claims checking, priority support, and detailed analytics.</p>
+                <h3>Your Plan Features</h3>
+                <ul class="feature-list">
+                    <li>{{ '✅' if ents.pdf_export else '❌' }} PDF Export</li>
+                    <li>✅ {{ ents.variations_per_claim if ents.variations_per_claim != -1 else 'All' }} variations per claim</li>
+                    <li>{{ '✅' if ents.can_refresh_variations else '❌' }} Refresh to see more variations</li>
+                    <li>{{ '✅' if ents.bulk_checking else '❌' }} Bulk ingredient checking</li>
+                    <li>{{ '✅' if ents.pro_tools else '❌' }} Pro tools access</li>
+                    <li>{{ '✅' if ents.priority_support else '❌' }} Priority support</li>
+                </ul>
             </div>
             
             <div class="card">

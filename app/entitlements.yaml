@@ -3,18 +3,34 @@ free:
   countries_per_check: 1
   pro_tools: false
   priority_support: false
+  pdf_export: false
+  variations_per_claim: 3
+  can_refresh_variations: false
+  bulk_checking: false
 starter:
   daily_checks: 20
   countries_per_check: 2
   pro_tools: false
   priority_support: false
+  pdf_export: true
+  variations_per_claim: 3
+  can_refresh_variations: false
+  bulk_checking: false
 pro:
   daily_checks: 200
   countries_per_check: 5
   pro_tools: true
   priority_support: true
+  pdf_export: true
+  variations_per_claim: 5
+  can_refresh_variations: true
+  bulk_checking: false
 enterprise:
   daily_checks: -1
   countries_per_check: 20
   pro_tools: true
   priority_support: "dedicated"
+  pdf_export: true
+  variations_per_claim: -1
+  can_refresh_variations: true
+  bulk_checking: true
