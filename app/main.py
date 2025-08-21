@@ -388,3 +388,69 @@ def debug_info():
         "features": ["stripe", "auth", "dashboard", "ingredient_checker"],
         "endpoints_available": True
     }
+
+@app.get("/test-page", response_class=HTMLResponse)
+def test_page():
+    """Simple test page to check if HTML responses work."""
+    return """
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Test Page</title>
+        <style>
+            body { 
+                background: linear-gradient(135deg, #020617 0%, #0f172a 100%);
+                color: #e2e8f0;
+                font-family: 'Inter', sans-serif;
+                margin: 0;
+                padding: 2rem;
+                min-height: 100vh;
+            }
+            .container {
+                max-width: 800px;
+                margin: 0 auto;
+                background: #1e293b;
+                border: 1px solid #334155;
+                border-radius: 1rem;
+                padding: 2rem;
+                box-shadow: 0 10px 25px -3px rgba(0, 0, 0, 0.2);
+            }
+            h1 {
+                background: linear-gradient(135deg, #2563eb 0%, #10b981 100%);
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+                background-clip: text;
+                font-size: 2.5rem;
+                font-weight: 700;
+                margin: 0 0 1rem 0;
+            }
+            .btn {
+                background: #2563eb;
+                color: white;
+                border: none;
+                border-radius: 0.5rem;
+                padding: 0.75rem 1.5rem;
+                cursor: pointer;
+                font-size: 0.875rem;
+                font-weight: 500;
+                text-decoration: none;
+                display: inline-block;
+                margin: 0.5rem;
+            }
+            .btn:hover {
+                background: #1d4ed8;
+                transform: translateY(-1px);
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>ClaimSafer Test Page</h1>
+            <p>If you see this styled page, HTML responses work correctly!</p>
+            <a href="/dashboard" class="btn">Go to Dashboard</a>
+            <a href="/account" class="btn">Go to Account</a>
+            <a href="/billing" class="btn">Go to Billing</a>
+        </div>
+    </body>
+    </html>
+    """
