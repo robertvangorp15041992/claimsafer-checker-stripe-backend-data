@@ -3,22 +3,44 @@
 <div class="billing-container">
     <div class="page-header">
         <h1>Billing & Subscription</h1>
-        <p>Manage your subscription and billing preferences</p>
+        <p>Manage your subscription, payment methods, and billing preferences</p>
     </div>
 
     <div class="billing-grid">
-        <!-- Current Plan -->
+        <!-- Current Plan & Subscription -->
         <div class="card">
             <h3>Current Plan</h3>
             <div class="plan-details">
                 <div class="plan-badge">
                     <span class="badge {{ user.tier.value }} large">{{ user.tier.value|capitalize }}</span>
                 </div>
+                <div class="subscription-info">
+                    <div class="info-row">
+                        <span class="label">Status:</span>
+                        <span class="value badge success">Active</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="label">Next Billing:</span>
+                        <span class="value">{{ (user.created_at + timedelta(days=30)).strftime('%B %d, %Y') }}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="label">Billing Cycle:</span>
+                        <span class="value">Monthly</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="label">Auto-Renewal:</span>
+                        <span class="value badge success">Enabled</span>
+                    </div>
+                </div>
                 <div class="plan-features">
                     <h4>Plan Features</h4>
                     <ul class="feature-list">
                         <li>{{ ents.daily_checks if ents.daily_checks != -1 else 'Unlimited' }} daily checks</li>
                         <li>{{ ents.countries_per_check }} countries per check</li>
+                        <li>{{ '✅' if ents.pdf_export else '❌' }} PDF Export</li>
+                        <li>{{ ents.variations_per_claim if ents.variations_per_claim != -1 else 'All' }} variations per claim</li>
+                        <li>{{ '✅' if ents.can_refresh_variations else '❌' }} Refresh variations</li>
+                        <li>{{ '✅' if ents.bulk_checking else '❌' }} Bulk ingredient checking</li>
                         <li>{{ '✅' if ents.pro_tools else '❌' }} Pro tools access</li>
                         <li>{{ ents.priority_support }} support</li>
                     </ul>
@@ -26,31 +48,55 @@
             </div>
         </div>
 
-        <!-- Billing Information -->
+        <!-- Payment Method -->
         <div class="card">
-            <h3>Billing Information</h3>
-            <div class="billing-info">
-                <div class="info-item">
-                    <label>Customer ID</label>
-                    <span>{{ user.stripe_customer_id or 'Not set' }}</span>
+            <h3>Payment Method</h3>
+            <div class="payment-method">
+                <div class="payment-card">
+                    <div class="card-icon">💳</div>
+                    <div class="card-details">
+                        <div class="card-type">Visa ending in 4242</div>
+                        <div class="card-expiry">Expires 12/25</div>
+                    </div>
+                    <div class="card-actions">
+                        <button class="btn btn-sm secondary">Update</button>
+                    </div>
                 </div>
-                <div class="info-item">
-                    <label>Account Status</label>
-                    <span class="badge {{ 'success' if user.is_active else 'danger' }}">
-                        {{ 'Active' if user.is_active else 'Inactive' }}
-                    </span>
-                </div>
-                <div class="info-item">
-                    <label>Member Since</label>
-                    <span>{{ user.created_at.strftime('%B %d, %Y') }}</span>
+                <div class="payment-actions">
+                    <button class="btn btn-sm primary">Add Payment Method</button>
+                    <button class="btn btn-sm danger">Remove</button>
                 </div>
             </div>
         </div>
 
-        <!-- Usage Overview -->
+        <!-- Usage Analytics -->
         <div class="card">
-            <h3>Usage Overview</h3>
-            <div class="usage-overview">
+            <h3>Usage Analytics</h3>
+            <div class="usage-analytics">
+                <div class="usage-chart">
+                    <div class="chart-header">
+                        <h4>Last 7 Days</h4>
+                        <div class="chart-legend">
+                            <span class="legend-item">
+                                <span class="legend-color used"></span>
+                                Used
+                            </span>
+                            <span class="legend-item">
+                                <span class="legend-color limit"></span>
+                                Limit
+                            </span>
+                        </div>
+                    </div>
+                    <div class="chart-bars">
+                        {% for i in range(7) %}
+                        <div class="chart-bar">
+                            <div class="bar-fill used" style="height: {{ (used / ents.daily_checks * 100) if ents.daily_checks != -1 else 50 }}%"></div>
+                            <div class="bar-fill limit" style="height: 100%"></div>
+                            <div class="bar-label">{{ ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][i] }}</div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
                 <div class="usage-stats">
                     <div class="stat-item">
                         <div class="stat-number">{{ used }}</div>
@@ -70,10 +116,97 @@
             </div>
         </div>
 
-        <!-- Billing Actions -->
+        <!-- Billing Information -->
         <div class="card">
-            <h3>Billing Actions</h3>
-            <div class="billing-actions">
+            <h3>Account Information</h3>
+            <div class="account-info">
+                <div class="info-item">
+                    <label>Customer ID</label>
+                    <span>{{ user.stripe_customer_id or 'Not set' }}</span>
+                </div>
+                <div class="info-item">
+                    <label>Account Status</label>
+                    <span class="badge {{ 'success' if user.is_active else 'danger' }}">
+                        {{ 'Active' if user.is_active else 'Inactive' }}
+                    </span>
+                </div>
+                <div class="info-item">
+                    <label>Member Since</label>
+                    <span>{{ user.created_at.strftime('%B %d, %Y') }}</span>
+                </div>
+                <div class="info-item">
+                    <label>Email</label>
+                    <span>{{ user.email }}</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Billing History -->
+        <div class="card">
+            <h3>Billing History</h3>
+            <div class="billing-history">
+                <div class="invoice-item">
+                    <div class="invoice-details">
+                        <div class="invoice-date">December 15, 2024</div>
+                        <div class="invoice-amount">$29.00</div>
+                        <div class="invoice-status badge success">Paid</div>
+                    </div>
+                    <div class="invoice-actions">
+                        <button class="btn btn-sm secondary">Download</button>
+                        <button class="btn btn-sm secondary">View</button>
+                    </div>
+                </div>
+                <div class="invoice-item">
+                    <div class="invoice-details">
+                        <div class="invoice-date">November 15, 2024</div>
+                        <div class="invoice-amount">$29.00</div>
+                        <div class="invoice-status badge success">Paid</div>
+                    </div>
+                    <div class="invoice-actions">
+                        <button class="btn btn-sm secondary">Download</button>
+                        <button class="btn btn-sm secondary">View</button>
+                    </div>
+                </div>
+                <div class="invoice-item">
+                    <div class="invoice-details">
+                        <div class="invoice-date">October 15, 2024</div>
+                        <div class="invoice-amount">$29.00</div>
+                        <div class="invoice-status badge success">Paid</div>
+                    </div>
+                    <div class="invoice-actions">
+                        <button class="btn btn-sm secondary">Download</button>
+                        <button class="btn btn-sm secondary">View</button>
+                    </div>
+                </div>
+                <div class="view-all">
+                    <a href="/billing/invoices" class="btn btn-sm secondary">View All Invoices</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Plan Management -->
+        <div class="card">
+            <h3>Plan Management</h3>
+            <div class="plan-management">
+                <div class="current-plan-info">
+                    <h4>Current Plan: {{ user.tier.value|capitalize }}</h4>
+                    <p>You're currently on the {{ user.tier.value|capitalize }} plan</p>
+                </div>
+                <div class="plan-actions">
+                    <button class="btn btn-primary">Upgrade Plan</button>
+                    <button class="btn btn-secondary">Downgrade Plan</button>
+                    <button class="btn btn-danger">Cancel Subscription</button>
+                </div>
+                <div class="plan-note">
+                    <p>💡 <strong>Pro tip:</strong> Upgrade to Enterprise for unlimited checks and bulk processing!</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="card">
+            <h3>Quick Actions</h3>
+            <div class="quick-actions">
                 <a href="/billing/portal" class="btn btn-primary">
                     <span class="action-icon">💳</span>
                     Manage Billing Portal
@@ -85,6 +218,10 @@
                 <a href="/dashboard" class="btn secondary">
                     <span class="action-icon">📊</span>
                     Dashboard
+                </a>
+                <a href="/support" class="btn secondary">
+                    <span class="action-icon">🆘</span>
+                    Get Support
                 </a>
             </div>
         </div>
@@ -102,20 +239,40 @@
                         <li>3 daily checks</li>
                         <li>1 country per check</li>
                         <li>Basic support</li>
+                        <li>❌ PDF Export</li>
+                        <li>❌ Bulk checking</li>
                     </ul>
+                    <button class="btn btn-secondary">Current Plan</button>
                 </div>
                 <div class="plan-card featured">
                     <div class="plan-header">
+                        <h4>Starter</h4>
+                        <div class="plan-price">$19/month</div>
+                        <div class="plan-badge">Popular</div>
+                    </div>
+                    <ul class="plan-features">
+                        <li>20 daily checks</li>
+                        <li>2 countries per check</li>
+                        <li>Standard support</li>
+                        <li>✅ PDF Export</li>
+                        <li>❌ Bulk checking</li>
+                    </ul>
+                    <button class="btn btn-primary">Upgrade</button>
+                </div>
+                <div class="plan-card">
+                    <div class="plan-header">
                         <h4>Pro</h4>
-                        <div class="plan-price">$29/month</div>
-                        <div class="plan-badge">Current</div>
+                        <div class="plan-price">$49/month</div>
                     </div>
                     <ul class="plan-features">
                         <li>200 daily checks</li>
                         <li>5 countries per check</li>
-                        <li>Pro tools access</li>
                         <li>Priority support</li>
+                        <li>✅ PDF Export</li>
+                        <li>✅ Refresh variations</li>
+                        <li>❌ Bulk checking</li>
                     </ul>
+                    <button class="btn btn-primary">Upgrade</button>
                 </div>
                 <div class="plan-card">
                     <div class="plan-header">
@@ -125,9 +282,12 @@
                     <ul class="plan-features">
                         <li>Unlimited checks</li>
                         <li>20 countries per check</li>
-                        <li>All pro features</li>
                         <li>Dedicated support</li>
+                        <li>✅ PDF Export</li>
+                        <li>✅ All variations</li>
+                        <li>✅ Bulk checking</li>
                     </ul>
+                    <button class="btn btn-primary">Upgrade</button>
                 </div>
             </div>
         </div>
@@ -136,7 +296,7 @@
 
 <style>
 .billing-container {
-    max-width: 1200px;
+    max-width: 1400px;
     margin: 0 auto;
 }
 
@@ -163,7 +323,7 @@
 
 .billing-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
     gap: 2rem;
 }
 
@@ -180,6 +340,36 @@
 .badge.large {
     font-size: 1.25rem;
     padding: 0.5rem 1.5rem;
+}
+
+.subscription-info {
+    background: var(--darker);
+    border-radius: 0.5rem;
+    padding: 1rem;
+    border: 1px solid var(--border);
+}
+
+.info-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--border);
+}
+
+.info-row:last-child {
+    border-bottom: none;
+}
+
+.info-row .label {
+    color: var(--text-muted);
+    font-size: 0.875rem;
+}
+
+.info-row .value {
+    color: var(--text);
+    font-weight: 500;
+    font-size: 0.875rem;
 }
 
 .plan-features h4 {
@@ -204,38 +394,137 @@
     font-size: 0.875rem;
 }
 
-.billing-info {
+/* Payment Method */
+.payment-method {
     display: flex;
     flex-direction: column;
     gap: 1rem;
 }
 
-.info-item {
+.payment-card {
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    padding: 0.75rem 0;
-    border-bottom: 1px solid var(--border);
+    gap: 1rem;
+    background: var(--darker);
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    padding: 1rem;
 }
 
-.info-item:last-child {
-    border-bottom: none;
+.card-icon {
+    font-size: 1.5rem;
 }
 
-.info-item label {
-    font-weight: 500;
+.card-details {
+    flex: 1;
+}
+
+.card-type {
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 0.25rem;
+}
+
+.card-expiry {
+    font-size: 0.875rem;
     color: var(--text-muted);
 }
 
-.info-item span {
-    color: var(--text);
-    font-weight: 500;
+.payment-actions {
+    display: flex;
+    gap: 0.5rem;
 }
 
-.usage-overview {
+/* Usage Analytics */
+.usage-analytics {
     display: flex;
     flex-direction: column;
     gap: 1.5rem;
+}
+
+.usage-chart {
+    background: var(--darker);
+    border-radius: 0.5rem;
+    padding: 1rem;
+    border: 1px solid var(--border);
+}
+
+.chart-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.chart-header h4 {
+    margin: 0;
+    font-size: 1rem;
+    color: var(--text);
+}
+
+.chart-legend {
+    display: flex;
+    gap: 1rem;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.legend-color {
+    width: 12px;
+    height: 12px;
+    border-radius: 2px;
+}
+
+.legend-color.used {
+    background: var(--primary);
+}
+
+.legend-color.limit {
+    background: var(--border);
+}
+
+.chart-bars {
+    display: flex;
+    justify-content: space-between;
+    align-items: end;
+    height: 100px;
+    gap: 0.5rem;
+}
+
+.chart-bar {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+    position: relative;
+}
+
+.bar-fill {
+    width: 100%;
+    border-radius: 2px;
+    transition: height 0.3s ease;
+}
+
+.bar-fill.used {
+    background: var(--primary);
+    opacity: 0.8;
+}
+
+.bar-fill.limit {
+    background: var(--border);
+    opacity: 0.3;
+}
+
+.bar-label {
+    font-size: 0.75rem;
+    color: var(--text-muted);
 }
 
 .usage-stats {
@@ -270,13 +559,138 @@
     gap: 0.5rem;
 }
 
+.progress-bar {
+    height: 8px;
+    background: var(--darker);
+    border-radius: 4px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--primary) 0%, var(--success) 100%);
+    transition: width 0.3s ease;
+}
+
 .progress-text {
     text-align: center;
     font-size: 0.875rem;
     color: var(--text-muted);
 }
 
-.billing-actions {
+/* Account Info */
+.account-info {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.info-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid var(--border);
+}
+
+.info-item:last-child {
+    border-bottom: none;
+}
+
+.info-item label {
+    font-weight: 500;
+    color: var(--text-muted);
+}
+
+.info-item span {
+    color: var(--text);
+    font-weight: 500;
+}
+
+/* Billing History */
+.billing-history {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.invoice-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem;
+    background: var(--darker);
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+}
+
+.invoice-details {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.invoice-date {
+    color: var(--text);
+    font-weight: 500;
+}
+
+.invoice-amount {
+    color: var(--primary);
+    font-weight: 600;
+}
+
+.invoice-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.view-all {
+    text-align: center;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border);
+}
+
+/* Plan Management */
+.plan-management {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.current-plan-info h4 {
+    margin: 0 0 0.5rem 0;
+    color: var(--text);
+}
+
+.current-plan-info p {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 0.875rem;
+}
+
+.plan-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.plan-note {
+    background: var(--darker);
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    padding: 1rem;
+}
+
+.plan-note p {
+    margin: 0;
+    font-size: 0.875rem;
+    color: var(--text-muted);
+}
+
+/* Quick Actions */
+.quick-actions {
     display: flex;
     flex-direction: column;
     gap: 1rem;
@@ -286,9 +700,10 @@
     margin-right: 0.5rem;
 }
 
+/* Plans Comparison */
 .plans-comparison {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
     gap: 1.5rem;
     margin-top: 1rem;
 }
@@ -301,6 +716,8 @@
     text-align: center;
     position: relative;
     transition: transform 0.2s, box-shadow 0.2s;
+    display: flex;
+    flex-direction: column;
 }
 
 .plan-card:hover {
@@ -346,6 +763,8 @@
 
 .plan-card .feature-list {
     text-align: left;
+    flex: 1;
+    margin-bottom: 1.5rem;
 }
 
 .plan-card .feature-list li {
@@ -353,10 +772,64 @@
     font-size: 0.875rem;
 }
 
+.plan-card .btn {
+    margin-top: auto;
+}
+
 .full-width {
     grid-column: 1 / -1;
 }
 
+/* Buttons */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 0.5rem;
+    font-weight: 500;
+    text-decoration: none;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 0.875rem;
+}
+
+.btn-primary {
+    background: var(--primary);
+    color: white;
+}
+
+.btn-primary:hover {
+    background: var(--primary-dark);
+    transform: translateY(-1px);
+}
+
+.btn-secondary {
+    background: var(--darker);
+    color: var(--text);
+    border: 1px solid var(--border);
+}
+
+.btn-secondary:hover {
+    background: var(--border);
+}
+
+.btn-danger {
+    background: var(--danger);
+    color: white;
+}
+
+.btn-danger:hover {
+    background: var(--danger-dark);
+}
+
+.btn-sm {
+    padding: 0.5rem 1rem;
+    font-size: 0.75rem;
+}
+
+/* Responsive */
 @media (max-width: 768px) {
     .billing-grid {
         grid-template-columns: 1fr;
@@ -368,6 +841,16 @@
     
     .plans-comparison {
         grid-template-columns: 1fr;
+    }
+    
+    .invoice-details {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+    
+    .chart-bars {
+        height: 80px;
     }
 }
 </style>

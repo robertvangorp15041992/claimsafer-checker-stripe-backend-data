@@ -13,6 +13,7 @@ import os
 import stripe
 from werkzeug.security import check_password_hash, generate_password_hash
 from dotenv import load_dotenv
+from datetime import timedelta
 
 load_dotenv()
 
@@ -127,6 +128,7 @@ def billing(request: Request, db: Session = Depends(get_db), user=Depends(requir
             "used": counter.daily_checks_used,
             "csrf_token": csrf_token,
             "upgrade_url": UPGRADE_URL,
+            "timedelta": timedelta,
         })
         response.set_cookie("csrf_token", csrf_token, httponly=False, samesite="lax")
         return response
