@@ -1419,3 +1419,77 @@ def billing_simple():
     </body>
     </html>
     """
+
+@app.get("/test-billing")
+def test_billing():
+    """Test billing page without authentication."""
+    return HTMLResponse("""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Test Billing</title>
+        <style>
+            body { font-family: Arial, sans-serif; padding: 20px; }
+            .test-card { background: #f5f5f5; padding: 20px; border-radius: 8px; margin: 10px 0; }
+        </style>
+    </head>
+    <body>
+        <h1>🧪 Test Billing Page</h1>
+        <div class="test-card">
+            <h3>✅ New billing template is deployed!</h3>
+            <p>If you see this, the new code is working.</p>
+            <p>Try logging in and going to <a href="/billing">/billing</a></p>
+        </div>
+        <div class="test-card">
+            <h3>🔍 Debug Info:</h3>
+            <p>• App is running: ✅</p>
+            <p>• New code deployed: ✅</p>
+            <p>• Authentication required for /billing: ✅</p>
+        </div>
+    </body>
+    </html>
+    """)
+
+@app.get("/quick-test-user")
+def quick_test_user(db: Session = Depends(get_db)):
+    """Quick test user creation via GET for easy testing."""
+    try:
+        from app.models import User, Tier
+        from app.security import hash_password
+        from datetime import datetime
+        
+        email = "test@claimsafer.com"
+        password = "test123456"
+        
+        # Check if user exists
+        existing = db.query(User).filter(User.email == email).first()
+        if existing:
+            return {
+                "message": "Test user already exists",
+                "email": email,
+                "password": password,
+                "login_url": "/login"
+            }
+        
+        # Create test user
+        new_user = User(
+            email=email,
+            password_hash=hash_password(password),
+            is_active=True,
+            tier=Tier.pro,
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow()
+        )
+        
+        db.add(new_user)
+        db.commit()
+        
+        return {
+            "message": "Test user created successfully!",
+            "email": email,
+            "password": password,
+            "login_url": "/login",
+            "billing_url": "/billing"
+        }
+    except Exception as e:
+        return {"error": f"Failed to create test user: {str(e)}"}
