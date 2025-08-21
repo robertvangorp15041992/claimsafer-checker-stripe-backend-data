@@ -2,9 +2,9 @@ from .models import Tier
 
 # Fill these with your real Stripe Price IDs!
 PRICE_TO_TIER = {
-    "price_123STARTER": Tier.starter,
-    "price_456PRO": Tier.pro,
-    "price_789ENTERPRISE": Tier.enterprise,
+    "price_1RxaKuKrcfJzIacSIWtkIeNt": Tier.starter,
+    "price_1RxaLyKrcfJzIacS6OKhpmQm": Tier.pro,
+    "price_1RxaMwKrcfJzIacSzpxRunsx": Tier.enterprise,
 }
 DEFAULT_TIER = Tier.starter
 
