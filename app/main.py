@@ -26,6 +26,7 @@ from datetime import datetime
 from app.middleware import SecurityHeadersMiddleware, TimingAccessLogMiddleware, ErrorEnvelopeMiddleware
 from app.routes.ops import router as ops_router
 from app.services.entitlements import get_entitlements
+from app.dependencies import get_current_user
 from typing import List
 
 # Import ingredient checker functionality
