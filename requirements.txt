@@ -1,5 +1,5 @@
 fastapi
-uvicorn
+uvicorn[standard]
 python-docx
 python-multipart
 openai
@@ -14,5 +14,19 @@ bcrypt
 databases[postgresql]
 sqlalchemy
 asyncpg
+psycopg[binary]
+psycopg2-binary
 python-dotenv
+stripe
 itsdangerous
+werkzeug
+email-validator
+pytest
+httpx
+prometheus-client
+PyYAML
+starlette
+pydantic[email]
+python-jose[cryptography]
+numpy
+aiosqlite
