@@ -1,0 +1,4 @@
+FORCE DEPLOYMENT - Version 2.6
+Timestamp: 2025-09-15T17:53:00Z
+Status: Authentication system ready
+Endpoints: /login, /auth/check, /version, /auth-status
