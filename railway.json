@@ -10,5 +10,5 @@
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 10
   },
-  "_comment": "Updated railway.json - using main:app directly instead of start.sh script"
+  "_comment": "FORCE REDEPLOY - Railway should use main:app not app.main:app"
 }
