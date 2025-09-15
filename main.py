@@ -675,13 +675,10 @@ async def health_check():
         "status": "healthy",
         "timestamp": datetime.now().isoformat(),
         "data_loaded": len(df) if 'df' in globals() else 0,
-        "variations_loaded": len(GPT_LOOKUP) if 'GPT_LOOKUP' in globals() else 0
+        "variations_loaded": len(GPT_LOOKUP) if 'GPT_LOOKUP' in globals() else 0,
+        "version": "2.0-auth-enabled"
     }
 
-@app.get("/health")
-async def health_check():
-    """Health check endpoint for Railway"""
-    return {"status": "healthy", "service": "claimsafer-checker"}
 
 @app.get("/", response_class=HTMLResponse)
 def read_form(request: Request):
