@@ -680,6 +680,11 @@ async def health_check():
         "auth_enabled": True
     }
 
+@app.get("/health-simple")
+async def health_check_simple():
+    """Simple health check for Railway deployment"""
+    return {"status": "healthy", "version": "2.6"}
+
 
 @app.get("/test-auth")
 def test_auth():
