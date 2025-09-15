@@ -2,8 +2,8 @@ import os
 import sys
 import json
 import pandas as pd
-from datetime import datetime
-from fastapi import FastAPI, Request, Form, HTTPException
+from datetime import datetime, date
+from fastapi import FastAPI, Request, Form, HTTPException, Depends
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -14,6 +14,7 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from rapidfuzz import process
+from starlette.middleware.sessions import SessionMiddleware
 
 from xhtml2pdf import pisa
 
@@ -37,6 +38,18 @@ from sklearn.metrics.pairwise import cosine_similarity
 from rapidfuzz import fuzz
 from nltk.stem.snowball import SnowballStemmer
 
+# Import authentication modules
+from database import connect_db, disconnect_db, database
+from models import User
+from auth import require_auth, get_current_user_required
+from usage import check_and_update_usage
+from auth_routes import router as auth_router
+from schemas import UserResponse
+import logging
+
+# Setup logging
+logger = logging.getLogger(__name__)
+
 # ----------------------------------------------------
 # Basic helpers
 # ----------------------------------------------------
@@ -57,7 +70,28 @@ def normalize_text(s: str) -> str:
 # FastAPI
 # ----------------------------------------------------
 app = FastAPI()
+
+# Add session middleware
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=os.getenv("SESSION_SECRET_KEY", "your-secret-key-change-in-production"),
+    max_age=86400,  # 24 hours
+    same_site="lax"
+)
+
+# Include authentication routes
+app.include_router(auth_router)
+
 templates = Jinja2Templates(directory="templates")
+
+# Database startup/shutdown events
+@app.on_event("startup")
+async def startup_event():
+    await connect_db()
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    await disconnect_db()
 
 # ----------------------------------------------------
 # Email config
@@ -644,6 +678,11 @@ async def health_check():
         "variations_loaded": len(GPT_LOOKUP) if 'GPT_LOOKUP' in globals() else 0
     }
 
+@app.get("/health")
+async def health_check():
+    """Health check endpoint for Railway"""
+    return {"status": "healthy", "service": "claimsafer-checker"}
+
 @app.get("/", response_class=HTMLResponse)
 def read_form(request: Request):
     ingredients = sorted(df["Ingredient"].dropna().unique())
@@ -654,6 +693,11 @@ def read_form(request: Request):
         "countries": countries
     })
 
+@app.get("/login", response_class=HTMLResponse)
+def login_page(request: Request):
+    """Login page"""
+    return templates.TemplateResponse("login.html", {"request": request})
+
 # ---------- Ingredient -> Claims ----------
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.responses import RedirectResponse
@@ -661,38 +705,174 @@ from datetime import timedelta
 
 app.add_middleware(SessionMiddleware, secret_key=os.getenv("SESSION_SECRET_KEY", "super-secret-key"))
 
-USAGE_LIMIT = 3
-USAGE_RESET_DAYS = 7
-PAYWALL_URL = "https://claimsafer.com/#/pricing"
+# Tier-based limits
+TIER_LIMITS = {
+    "free": {
+        "searches_per_week": 3,
+        "ingredients_limit": None,
+        "variations_per_claim": 0
+    },
+    "early_essentials": {
+        "searches_per_month": None,  # No search limit
+        "ingredients_limit": 50,
+        "variations_per_claim": 3
+    },
+    "pro": {
+        "searches_per_month": 150,
+        "ingredients_limit": None,
+        "variations_per_claim": 10
+    },
+    "enterprise": {
+        "searches_per_month": None,  # Unlimited
+        "ingredients_limit": None,
+        "variations_per_claim": 20
+    }
+}
+PAYWALL_URL = "https://www.claimsafer.com/pricing"
 
-def check_and_update_usage(request):
-    session = request.session
-    now = datetime.utcnow()
-    usage_count = session.get("usage_count", 0)
-    first_use = session.get("first_use")
-    if first_use:
-        first_use_dt = datetime.fromisoformat(first_use)
-        if now - first_use_dt > timedelta(days=USAGE_RESET_DAYS):
-            # Reset after 7 days
-            session["usage_count"] = 1
-            session["first_use"] = now.isoformat()
-            return True
+def get_tier_limits(tier: str) -> dict:
+    """Get limits for a specific subscription tier"""
+    return TIER_LIMITS.get(tier, TIER_LIMITS["free"])
+
+def limit_ingredients(ingredients: list, tier: str) -> list:
+    """Limit ingredients based on subscription tier"""
+    limits = get_tier_limits(tier)
+    ingredient_limit = limits.get("ingredients_limit")
+    
+    if ingredient_limit is None:
+        return ingredients  # No limit
+    
+    return ingredients[:ingredient_limit]
+
+def limit_variations(variations: list, tier: str) -> list:
+    """Limit claim variations based on subscription tier"""
+    limits = get_tier_limits(tier)
+    variation_limit = limits.get("variations_per_claim")
+    
+    if variation_limit is None or variation_limit == 0:
+        return []  # No variations allowed
+    
+    return variations[:variation_limit]
+
+async def check_and_update_usage(user_id: str) -> tuple[bool, dict]:
+    """Check and update user usage limits based on subscription tier"""
+    try:
+        # Get user from database
+        query = User.__table__.select().where(User.id == user_id)
+        user = await database.fetch_one(query)
+        
+        if not user:
+            return False, {"error": "User not found"}
+        
+        # Check if user is active
+        if not user.is_active:
+            return False, {"error": "User account is inactive"}
+        
+        current_date = date.today()
+        tier = user.subscription_tier
+        limits = TIER_LIMITS.get(tier, TIER_LIMITS["free"])
+        
+        # Handle different tier limits
+        if tier == "free":
+            # Free tier: 3 searches per week
+            if user.last_search_date is None:
+                # First search
+                user.search_count = 1
+                user.last_search_date = current_date
+            else:
+                days_since_last = (current_date - user.last_search_date).days
+                if days_since_last >= 7:
+                    # Reset for new week
+                    user.search_count = 1
+                    user.last_search_date = current_date
+                elif user.search_count >= limits["searches_per_week"]:
+                    return False, {"error": "Free tier limit reached (3 searches per week). Upgrade to continue."}
+                else:
+                    # Increment usage
+                    user.search_count += 1
+                    user.last_search_date = current_date
+            
+            # Update database
+            update_query = User.__table__.update().where(User.id == user_id).values(
+                search_count=user.search_count,
+                last_search_date=user.last_search_date
+            )
+            await database.execute(update_query)
+            
+            remaining = limits["searches_per_week"] - user.search_count
+            return True, {"message": "Search allowed", "remaining": remaining}
+        
+        elif tier == "early_essentials":
+            # Early Essentials: No search limit, but limited ingredients and variations
+            # Just update last_search_date
+            update_query = User.__table__.update().where(User.id == user_id).values(
+                last_search_date=current_date
+            )
+            await database.execute(update_query)
+            
+            return True, {"message": "Search allowed (Early Essentials)", "remaining": "unlimited"}
+        
+        elif tier == "pro":
+            # Pro: 150 searches per month
+            if user.last_search_date is None:
+                # First search
+                user.search_count = 1
+                user.last_search_date = current_date
+            else:
+                # Check if we need to reset for new month
+                if user.last_search_date.month != current_date.month or user.last_search_date.year != current_date.year:
+                    # New month, reset count
+                    user.search_count = 1
+                    user.last_search_date = current_date
+                elif user.search_count >= limits["searches_per_month"]:
+                    return False, {"error": "Pro tier monthly limit reached (150 searches per month). Upgrade to Enterprise for unlimited."}
+                else:
+                    # Increment usage
+                    user.search_count += 1
+                    user.last_search_date = current_date
+            
+            # Update database
+            update_query = User.__table__.update().where(User.id == user_id).values(
+                search_count=user.search_count,
+                last_search_date=user.last_search_date
+            )
+            await database.execute(update_query)
+            
+            remaining = limits["searches_per_month"] - user.search_count
+            return True, {"message": "Search allowed (Pro)", "remaining": remaining}
+        
+        elif tier == "enterprise":
+            # Enterprise: Unlimited searches
+            # Just update last_search_date
+            update_query = User.__table__.update().where(User.id == user_id).values(
+                last_search_date=current_date
+            )
+            await database.execute(update_query)
+            
+            return True, {"message": "Search allowed (Enterprise)", "remaining": "unlimited"}
+        
         else:
-            if usage_count >= USAGE_LIMIT:
-                return False
-            session["usage_count"] = usage_count + 1
-            return True
-    else:
-        # First use
-        session["usage_count"] = 1
-        session["first_use"] = now.isoformat()
-        return True
+            return False, {"error": "Invalid subscription tier"}
+    
+    except Exception as e:
+        logger.error(f"Error checking usage: {e}")
+        return False, {"error": "An error occurred while checking usage"}
 
 @app.post("/search-by-ingredient", response_class=HTMLResponse)
-async def search_by_ingredient(request: Request, ingredient: str = Form(...), country: str = Form(...)):
-    # Usage limit check
-    if not check_and_update_usage(request):
-        return RedirectResponse(PAYWALL_URL, status_code=307)
+async def search_by_ingredient(
+    request: Request, 
+    ingredient: str = Form(...), 
+    country: str = Form(...),
+    user: UserResponse = Depends(require_auth)
+):
+    # Check usage limits
+    allowed, usage_info = await check_and_update_usage(str(user.id))
+    if not allowed:
+        return JSONResponse({
+            "redirect": True, 
+            "url": PAYWALL_URL,
+            "message": usage_info.get("error", "Usage limit reached")
+        })
     try:
         print(f"🔍 Searching for ingredient: '{ingredient}' in country: '{country}'")
         print(f"📊 DataFrame shape: {df.shape}")
@@ -820,6 +1000,9 @@ async def search_by_ingredient(request: Request, ingredient: str = Form(...), co
             processed_claims.extend(split_individual_claims)
         # Initialize processed_claims with real, non-empty claims from country_claims
         processed_claims = [c for c in processed_claims if c and isinstance(c, str) and c.strip()]
+        
+        # Apply tier-based limits to claims
+        processed_claims = limit_variations(processed_claims, user.subscription_tier)
         print(f"[DEBUG] Processed claims after initialization: {processed_claims}")
         # Only set 'No claims allowed.' if there are truly no valid claims
         def is_real_claim(claim):
@@ -1034,10 +1217,21 @@ async def search_by_ingredient(request: Request, ingredient: str = Form(...), co
 
 # ---------- Claim -> Ingredients ----------
 @app.post("/search-by-claim", response_class=HTMLResponse)
-async def search_by_claim(request: Request, claim: str = Form(""), country: str = Form(...), category: Optional[str] = Form(None)):
-    # Usage limit check
-    if not check_and_update_usage(request):
-        return RedirectResponse(PAYWALL_URL, status_code=307)
+async def search_by_claim(
+    request: Request, 
+    claim: str = Form(""), 
+    country: str = Form(...), 
+    category: Optional[str] = Form(None),
+    user: UserResponse = Depends(require_auth)
+):
+    # Check usage limits
+    allowed, usage_info = await check_and_update_usage(str(user.id))
+    if not allowed:
+        return JSONResponse({
+            "redirect": True, 
+            "url": PAYWALL_URL,
+            "message": usage_info.get("error", "Usage limit reached")
+        })
     """
     Claim -> Ingredients:
     - Als category gegeven is en claim leeg is: toon alle ingrediënten in die categorie (geen ranking).
@@ -1071,9 +1265,12 @@ async def search_by_claim(request: Request, claim: str = Form(""), country: str 
 
         # --- PAD 1: GEEN claim/keyword ingevuld → géén ranking, gewoon tonen ---
         if not (claim.strip()):
-            TOP_PER_ING = 3
+            # Apply tier-based ingredient limits
+            ingredient_groups = list(sub.groupby("Ingredient", sort=False))
+            limited_ingredients = limit_ingredients(ingredient_groups, user.subscription_tier)
+            
             cards = []
-            for idx, (ing, g) in enumerate(sub.groupby("Ingredient", sort=False), start=1):
+            for idx, (ing, g) in enumerate(limited_ingredients, start=1):
                 seen = set()
                 cleaned = []
                 for c in g["claim"]:
@@ -1082,7 +1279,7 @@ async def search_by_claim(request: Request, claim: str = Form(""), country: str 
                         continue
                     seen.add(c_norm_l)
                     cleaned.append(c)
-                    if len(cleaned) >= TOP_PER_ING:
+                    if len(cleaned) >= 3:  # Show up to 3 claims per ingredient
                         break
 
                 dosage_vals = [d for d in g.get("Dosage", pd.Series([], dtype=str)).astype(str) if d and d.strip()]
@@ -1120,9 +1317,12 @@ async def search_by_claim(request: Request, claim: str = Form(""), country: str 
                 status_code=200
             )
 
-        TOP_PER_ING = 3
+        # Apply tier-based ingredient limits
+        ingredient_groups = list(sub.groupby("Ingredient", sort=False))
+        limited_ingredients = limit_ingredients(ingredient_groups, user.subscription_tier)
+        
         cards = []
-        for idx, (ing, g) in enumerate(sub.groupby("Ingredient", sort=False), start=1):
+        for idx, (ing, g) in enumerate(limited_ingredients, start=1):
             seen = set()
             cleaned = []
             for c in g["claim"]:
@@ -1131,7 +1331,7 @@ async def search_by_claim(request: Request, claim: str = Form(""), country: str 
                     continue
                 seen.add(c_norm_l)
                 cleaned.append(c)
-                if len(cleaned) >= TOP_PER_ING:
+                if len(cleaned) >= 3:  # Show up to 3 claims per ingredient
                     break
 
             dosage_vals = [d for d in g.get("Dosage", pd.Series([], dtype=str)).astype(str) if d and d.strip()]
@@ -1166,16 +1366,20 @@ async def search_by_claim(request: Request, claim: str = Form(""), country: str 
 
 # ---------- Get GPT Variations for a Single Claim ----------
 @app.get("/get-variations", response_class=JSONResponse)
-async def get_gpt_variations(claim: str):
+async def get_gpt_variations(claim: str, user: UserResponse = Depends(require_auth)):
     """
-    Returns GPT-generated variations for a given claim.
+    Returns GPT-generated variations for a given claim, limited by subscription tier.
     - Matches exact claim first.
     - Falls back to fuzzy match if needed.
     """
     variations = get_variations_for_claim(claim)
     if not variations:
         return {"claim": claim, "variations": [], "status": "no_match"}
-    return {"claim": claim, "variations": variations, "status": "ok"}
+    
+    # Apply tier-based limits to variations
+    limited_variations = limit_variations(variations, user.subscription_tier)
+    
+    return {"claim": claim, "variations": limited_variations, "status": "ok"}
 
 
 # ---------- Check claims (detailed) ----------

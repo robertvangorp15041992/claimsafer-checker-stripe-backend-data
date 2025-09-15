@@ -10,5 +10,9 @@ xhtml2pdf
 scikit-learn
 rapidfuzz
 nltk
-
+bcrypt
+databases[postgresql]
+sqlalchemy
+asyncpg
+python-dotenv
 itsdangerous

@@ -1076,7 +1076,7 @@ ingredientForm.addEventListener("submit", async function (e) {
   const ingredient = document.getElementById("ingredient").value;
   const country = countrySelect.value;
 
-  const url = "/search-by-ingredient"; // use the route that shows all unique claims
+  const url = "/search-by-ingredient";
 
   // set loading texts
   loadingIngredient.textContent = ingredient;
@@ -1099,18 +1099,30 @@ ingredientForm.addEventListener("submit", async function (e) {
     body: new URLSearchParams({ ingredient, country })
   });
 
- const result = await response.text();
- loadingMessage.classList.add("hidden");
- responseBox.innerHTML = result;
- setupViewVariationsButtons();
- document.getElementById("similar-ingredients-container").innerHTML = "";
- document.getElementById("matching-claims-container").innerHTML = "";
+  // Try to parse as JSON to check for redirect
+  let isRedirect = false;
+  try {
+    const json = await response.clone().json();
+    if (json && json.redirect && json.url) {
+      window.location.href = json.url;
+      isRedirect = true;
+      return;
+    }
+  } catch (e) {
+    // Not JSON, continue as HTML
+  }
+  if (isRedirect) return;
 
-// ✅ opnieuw variaties laden nu claims aanwezig zijn
- insertCopyIcons();
- //loadClaimVariations();   // <--- HIER TOEGEVOEGD
+  // Only try to read the response as HTML if not a redirect
+  const result = await response.text();
+  loadingMessage.classList.add("hidden");
+  responseBox.innerHTML = result;
+  setupViewVariationsButtons();
+  document.getElementById("similar-ingredients-container").innerHTML = "";
+  document.getElementById("matching-claims-container").innerHTML = "";
 
- document.getElementById("email-section").classList.remove("hidden");
+  insertCopyIcons();
+  document.getElementById("email-section").classList.remove("hidden");
 
   });
 
@@ -1154,12 +1166,25 @@ ingredientForm.addEventListener("submit", async function (e) {
       body: formData
     });
 
+    // Try to parse as JSON to check for redirect
+    let isRedirect = false;
+    try {
+      const json = await res.clone().json();
+      if (json && json.redirect && json.url) {
+        window.location.href = json.url;
+        isRedirect = true;
+        return;
+      }
+    } catch (e) {
+      // Not JSON, continue as HTML
+    }
+    if (isRedirect) return;
+
+    // Only try to read the response as HTML if not a redirect
     const html = await res.text();
     document.getElementById("claim-to-ingredient-results").innerHTML = html;
     setupViewVariationsButtons();
-    //loadClaimVariations();   // ✅ opnieuw variaties laden nu de nieuwe claims in de DOM staan
 
-    // show email section if something meaningful came back
     const hasResults = html.trim().length > 0 && !html.includes("No matching ingredients");
     document.getElementById("claim-email-section").classList.toggle("hidden", !hasResults);
   });
