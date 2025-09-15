@@ -1,0 +1,5 @@
+DEPLOYMENT TRIGGER - Version 2.6
+Timestamp: 2025-09-15T18:02:00Z
+Status: Authentication system ready
+Endpoints: /login, /auth/check, /version, /auth-status, /health-simple
+Force: true
