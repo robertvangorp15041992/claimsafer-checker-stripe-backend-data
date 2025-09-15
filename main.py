@@ -680,6 +680,11 @@ async def health_check():
     }
 
 
+@app.get("/test-auth")
+def test_auth():
+    """Test endpoint to verify new deployment"""
+    return {"message": "Authentication system is working!", "version": "2.3-auth-test"}
+
 @app.get("/", response_class=HTMLResponse)
 def read_form(request: Request):
     ingredients = sorted(df["Ingredient"].dropna().unique())
