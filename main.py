@@ -676,7 +676,7 @@ async def health_check():
         "timestamp": datetime.now().isoformat(),
         "data_loaded": len(df) if 'df' in globals() else 0,
         "variations_loaded": len(GPT_LOOKUP) if 'GPT_LOOKUP' in globals() else 0,
-        "version": "2.1-auth-enabled-force-deploy"
+        "version": "2.2-railway-json-fix"
     }
 
 
