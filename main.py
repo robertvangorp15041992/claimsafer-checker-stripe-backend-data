@@ -676,14 +676,19 @@ async def health_check():
         "timestamp": datetime.now().isoformat(),
         "data_loaded": len(df) if 'df' in globals() else 0,
         "variations_loaded": len(GPT_LOOKUP) if 'GPT_LOOKUP' in globals() else 0,
-        "version": "2.4-railway-json-force-redeploy"
+        "version": "2.5-AUTHENTICATION-SYSTEM-ENABLED"
     }
 
 
 @app.get("/test-auth")
 def test_auth():
     """Test endpoint to verify new deployment"""
-    return {"message": "Authentication system is working!", "version": "2.3-auth-test"}
+    return {"message": "Authentication system is working!", "version": "2.5-AUTHENTICATION-SYSTEM-ENABLED"}
+
+@app.get("/version")
+def get_version():
+    """Version endpoint to verify deployment"""
+    return {"version": "2.5-AUTHENTICATION-SYSTEM-ENABLED", "status": "deployed"}
 
 @app.get("/", response_class=HTMLResponse)
 def read_form(request: Request):
